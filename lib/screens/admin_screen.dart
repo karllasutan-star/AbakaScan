@@ -101,11 +101,8 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _handleExpiredSession() async {
     context.read<AdminProvider>().reset();
-
     context.read<HistoryProvider>().reset();
-
     context.read<ClassificationProvider>().reset();
-
     context.read<ImageSelectionProvider>().removeImage();
 
     await context.read<AuthProvider>().expireSession();
@@ -119,11 +116,8 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _logout() async {
     context.read<AdminProvider>().reset();
-
     context.read<HistoryProvider>().reset();
-
     context.read<ClassificationProvider>().reset();
-
     context.read<ImageSelectionProvider>().removeImage();
 
     await context.read<AuthProvider>().logout();
@@ -143,6 +137,8 @@ class _AdminScreenState extends State<AdminScreen> {
     setState(() {
       _selectedSection = section;
     });
+
+    _refreshCurrentSection();
   }
 
   Future<void> _openCreateAdmin() async {
@@ -199,13 +195,16 @@ class _AdminScreenState extends State<AdminScreen> {
         ? rawName.trim()
         : 'Administrator';
 
+    final theme = Theme.of(context);
+    final backgroundColor = theme.scaffoldBackgroundColor;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final desktop = constraints.maxWidth >= AppBreakpoints.desktop;
 
         if (desktop) {
           return Scaffold(
-            backgroundColor: AppColors.background,
+            backgroundColor: backgroundColor,
             body: Row(
               children: [
                 SizedBox(
@@ -231,10 +230,10 @@ class _AdminScreenState extends State<AdminScreen> {
         }
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: backgroundColor,
           appBar: AppBar(
-            backgroundColor: AppColors.background,
-            surfaceTintColor: AppColors.background,
+            backgroundColor: backgroundColor,
+            surfaceTintColor: Colors.transparent,
             elevation: 0,
             title: const _Brand(darkText: true),
             actions: [
@@ -279,13 +278,10 @@ class _AdminBody extends StatelessWidget {
   });
 
   final String adminName;
-
   final _AdminSection selectedSection;
 
   final Future<void> Function() onRefreshCurrent;
-
   final Future<void> Function() onRefreshAll;
-
   final Future<void> Function() onCreateAdmin;
 
   final bool compact;
@@ -359,13 +355,13 @@ class _AdminHeader extends StatelessWidget {
 
   final String adminName;
   final _AdminSection selectedSection;
-
   final Future<void> Function() onRefresh;
-
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     final title = switch (selectedSection) {
       _AdminSection.overview => 'Administrator Dashboard',
       _AdminSection.accounts => 'Account Management',
@@ -386,28 +382,43 @@ class _AdminHeader extends StatelessWidget {
         Text(
           'ADMINISTRATION',
           style: AppTypography.label.copyWith(
-            color: AppColors.primary,
+            color: colors.primary,
             fontSize: 10,
             fontWeight: FontWeight.w700,
             letterSpacing: 2,
           ),
         ),
+
         const SizedBox(height: 8),
+
         Text(
           title,
-          style: AppTypography.pageTitle.copyWith(fontSize: compact ? 27 : 34),
+          style: AppTypography.pageTitle.copyWith(
+            color: colors.onSurface,
+            fontSize: compact ? 27 : 34,
+          ),
         ),
+
         const SizedBox(height: 7),
+
         Text(
           'Signed in as $adminName',
-          style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+          style: AppTypography.body.copyWith(
+            color: colors.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
         ),
+
         const SizedBox(height: 5),
+
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: Text(
             description,
-            style: AppTypography.bodySecondary.copyWith(height: 1.5),
+            style: AppTypography.bodySecondary.copyWith(
+              color: colors.onSurfaceVariant,
+              height: 1.5,
+            ),
           ),
         ),
       ],
@@ -443,7 +454,6 @@ class _OverviewSection extends StatelessWidget {
   });
 
   final Future<void> Function() onRefresh;
-
   final Future<void> Function() onCreateAdmin;
 
   @override
@@ -545,6 +555,7 @@ class _AdminHero extends StatelessWidget {
             'assets/images/abakascan_auth_hero.png',
             fit: BoxFit.cover,
           ),
+
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -559,11 +570,13 @@ class _AdminHero extends StatelessWidget {
               ),
             ),
           ),
+
           const Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(painter: _FiberLinePainter()),
             ),
           ),
+
           Padding(
             padding: const EdgeInsets.all(22),
             child: LayoutBuilder(
@@ -575,7 +588,9 @@ class _AdminHero extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const _Brand(),
+
                     const SizedBox(height: 26),
+
                     Text(
                       'System intelligence\nat a glance.',
                       style: AppTypography.pageTitle.copyWith(
@@ -584,7 +599,9 @@ class _AdminHero extends StatelessWidget {
                         height: 1.04,
                       ),
                     ),
+
                     const SizedBox(height: 9),
+
                     Text(
                       '$totalAccounts accounts • '
                       '$totalClassifications classifications',
@@ -719,12 +736,14 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -732,22 +751,31 @@ class _MetricCard extends StatelessWidget {
           Container(
             width: 39,
             height: 39,
-            decoration: const BoxDecoration(
-              color: AppColors.primarySoft,
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
               shape: BoxShape.circle,
             ),
-            child: Icon(data.icon, color: AppColors.primary, size: 19),
+            child: Icon(data.icon, color: colors.primary, size: 19),
           ),
-          const Spacer(),
+
+          const SizedBox(height: 18),
+
           Text(
             data.value,
             style: AppTypography.sectionTitle.copyWith(
-              color: AppColors.primaryDark,
+              color: colors.onSurface,
               fontSize: 22,
             ),
           ),
+
           const SizedBox(height: 3),
-          Text(data.label, style: AppTypography.caption),
+
+          Text(
+            data.label,
+            style: AppTypography.caption.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
@@ -765,7 +793,6 @@ class _AccountsSection extends StatelessWidget {
   });
 
   final Future<void> Function() onRefresh;
-
   final Future<void> Function() onCreateAdmin;
 
   @override
@@ -781,6 +808,7 @@ class _AccountsSection extends StatelessWidget {
           button: FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primaryDark,
+              foregroundColor: Colors.white,
             ),
             onPressed: onCreateAdmin,
             icon: const Icon(Icons.person_add_alt_1_outlined),
@@ -828,6 +856,8 @@ class _AccountsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 800) {
@@ -844,15 +874,17 @@ class _AccountsList extends StatelessWidget {
         return Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: colors.surface,
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: colors.outlineVariant),
           ),
           clipBehavior: Clip.antiAlias,
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
-              headingRowColor: WidgetStatePropertyAll(AppColors.surfaceMuted),
+              headingRowColor: WidgetStatePropertyAll(
+                colors.surfaceContainerHighest,
+              ),
               columns: const [
                 DataColumn(label: Text('NAME')),
                 DataColumn(label: Text('EMAIL')),
@@ -901,6 +933,8 @@ class _AccountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     final displayName = user.fullName.trim().isEmpty
         ? 'Unnamed account'
         : user.fullName;
@@ -909,9 +943,9 @@ class _AccountCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -921,39 +955,53 @@ class _AccountCard extends StatelessWidget {
               Container(
                 width: 46,
                 height: 46,
-                decoration: const BoxDecoration(
-                  color: AppColors.primarySoft,
+                decoration: BoxDecoration(
+                  color: colors.primaryContainer,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   user.isAdmin
                       ? Icons.admin_panel_settings_outlined
                       : Icons.person_outline,
-                  color: AppColors.primary,
+                  color: colors.primary,
                 ),
               ),
+
               const SizedBox(width: 12),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(displayName, style: AppTypography.cardTitle),
+                    Text(
+                      displayName,
+                      style: AppTypography.cardTitle.copyWith(
+                        color: colors.onSurface,
+                      ),
+                    ),
+
                     const SizedBox(height: 3),
+
                     Text(
                       user.email.trim().isEmpty
                           ? 'No email available'
                           : user.email,
-                      style: AppTypography.caption,
+                      style: AppTypography.caption.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
               ),
+
               _RoleBadge(role: user.accountRoleLabel, admin: user.isAdmin),
             ],
           ),
 
           const SizedBox(height: 15),
+
           const Divider(),
+
           const SizedBox(height: 10),
 
           _AccountDetail(
@@ -983,16 +1031,18 @@ class _RoleBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: admin ? AppColors.primarySoft : AppColors.surfaceMuted,
+        color: admin ? colors.primaryContainer : colors.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         role.toUpperCase(),
         style: AppTypography.caption.copyWith(
-          color: admin ? AppColors.primaryDark : AppColors.textSecondary,
+          color: admin ? colors.onPrimaryContainer : colors.onSurfaceVariant,
           fontSize: 8,
           fontWeight: FontWeight.w700,
         ),
@@ -1009,11 +1059,26 @@ class _AccountDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 125, child: Text(label, style: AppTypography.caption)),
-        Expanded(child: Text(value, style: AppTypography.body)),
+        SizedBox(
+          width: 125,
+          child: Text(
+            label,
+            style: AppTypography.caption.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: AppTypography.body.copyWith(color: colors.onSurface),
+          ),
+        ),
       ],
     );
   }
@@ -1104,15 +1169,17 @@ class _ClassificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     final confidence = _confidence(record.confidencePercentage);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1124,14 +1191,11 @@ class _ClassificationCard extends StatelessWidget {
               Container(
                 width: 50,
                 height: 50,
-                decoration: const BoxDecoration(
-                  color: AppColors.primarySoft,
+                decoration: BoxDecoration(
+                  color: colors.primaryContainer,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.analytics_outlined,
-                  color: AppColors.primary,
-                ),
+                child: Icon(Icons.analytics_outlined, color: colors.primary),
               ),
 
               const SizedBox(width: 13),
@@ -1142,9 +1206,13 @@ class _ClassificationCard extends StatelessWidget {
                   children: [
                     Text(
                       'Analysis ${_shortId(record.id)}',
-                      style: AppTypography.cardTitle,
+                      style: AppTypography.cardTitle.copyWith(
+                        color: colors.onSurface,
+                      ),
                     ),
+
                     const SizedBox(height: 5),
+
                     Wrap(
                       spacing: 14,
                       runSpacing: 7,
@@ -1169,20 +1237,29 @@ class _ClassificationCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               _GradeBadge(grade: record.predictedGrade),
+
               const SizedBox(width: 12),
+
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     '${confidence.toStringAsFixed(1)}%',
                     style: AppTypography.cardTitle.copyWith(
-                      color: AppColors.primaryDark,
+                      color: colors.onSurface,
                     ),
                   ),
-                  const Text('Confidence', style: AppTypography.caption),
+                  Text(
+                    'Confidence',
+                    style: AppTypography.caption.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
                 ],
               ),
+
               const SizedBox(width: 10),
+
               IconButton(
                 tooltip: 'Details',
                 onPressed: () {
@@ -1228,13 +1305,15 @@ class _LatestClassification extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     final confidence = _confidence(record.confidencePercentage);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.primarySoft,
+        color: colors.primaryContainer,
         borderRadius: BorderRadius.circular(13),
       ),
       child: LayoutBuilder(
@@ -1246,16 +1325,18 @@ class _LatestClassification extends StatelessWidget {
               Container(
                 width: 48,
                 height: 48,
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
+                decoration: BoxDecoration(
+                  color: colors.surface,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.document_scanner_outlined,
-                  color: AppColors.primary,
+                  color: colors.primary,
                 ),
               ),
+
               const SizedBox(width: 12),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1263,12 +1344,21 @@ class _LatestClassification extends StatelessWidget {
                     Text(
                       record.predictedGrade,
                       style: AppTypography.sectionTitle.copyWith(
-                        color: AppColors.primaryDark,
+                        color: colors.onPrimaryContainer,
                         fontSize: 20,
                       ),
                     ),
+
                     const SizedBox(height: 3),
-                    Text(record.ownerDisplayName, style: AppTypography.caption),
+
+                    Text(
+                      record.ownerDisplayName,
+                      style: AppTypography.caption.copyWith(
+                        color: colors.onPrimaryContainer.withValues(
+                          alpha: 0.72,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1283,14 +1373,18 @@ class _LatestClassification extends StatelessWidget {
               Text(
                 '${confidence.toStringAsFixed(1)}% confidence',
                 style: AppTypography.cardTitle.copyWith(
-                  color: AppColors.primaryDark,
+                  color: colors.onPrimaryContainer,
                   fontSize: 13,
                 ),
               ),
+
               const SizedBox(height: 4),
+
               Text(
                 _formatDateTime(record.createdAt),
-                style: AppTypography.caption,
+                style: AppTypography.caption.copyWith(
+                  color: colors.onPrimaryContainer.withValues(alpha: 0.72),
+                ),
               ),
             ],
           );
@@ -1327,11 +1421,12 @@ class _SectionHeading extends StatelessWidget {
 
   final String title;
   final String description;
-
   final Widget? button;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 650;
@@ -1341,10 +1436,20 @@ class _SectionHeading extends StatelessWidget {
           children: [
             Text(
               title,
-              style: AppTypography.sectionTitle.copyWith(fontSize: 20),
+              style: AppTypography.sectionTitle.copyWith(
+                color: colors.onSurface,
+                fontSize: 20,
+              ),
             ),
+
             const SizedBox(height: 5),
-            Text(description, style: AppTypography.bodySecondary),
+
+            Text(
+              description,
+              style: AppTypography.bodySecondary.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
           ],
         );
 
@@ -1381,19 +1486,20 @@ class _SectionCard extends StatelessWidget {
 
   final String title;
   final String subtitle;
-
   final Widget child;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1406,17 +1512,30 @@ class _SectionCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: AppTypography.cardTitle.copyWith(fontSize: 15),
+                      style: AppTypography.cardTitle.copyWith(
+                        color: colors.onSurface,
+                        fontSize: 15,
+                      ),
                     ),
+
                     const SizedBox(height: 3),
-                    Text(subtitle, style: AppTypography.caption),
+
+                    Text(
+                      subtitle,
+                      style: AppTypography.caption.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ),
               ),
+
               ?trailing,
             ],
           ),
+
           const SizedBox(height: 16),
+
           child,
         ],
       ),
@@ -1431,16 +1550,18 @@ class _GradeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.primarySoft,
+        color: colors.primaryContainer,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         grade,
         style: AppTypography.caption.copyWith(
-          color: AppColors.primaryDark,
+          color: colors.onPrimaryContainer,
           fontSize: 9,
           fontWeight: FontWeight.w700,
         ),
@@ -1457,12 +1578,17 @@ class _MetaItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: AppColors.textSecondary),
+        Icon(icon, size: 14, color: colors.onSurfaceVariant),
         const SizedBox(width: 5),
-        Text(text, style: AppTypography.caption),
+        Text(
+          text,
+          style: AppTypography.caption.copyWith(color: colors.onSurfaceVariant),
+        ),
       ],
     );
   }
@@ -1479,13 +1605,15 @@ class _AdminLoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 55, horizontal: 20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         children: [
@@ -1494,11 +1622,15 @@ class _AdminLoadingState extends StatelessWidget {
             height: 30,
             child: CircularProgressIndicator(strokeWidth: 2.5),
           ),
+
           const SizedBox(height: 14),
+
           Text(
             message,
             textAlign: TextAlign.center,
-            style: AppTypography.bodySecondary,
+            style: AppTypography.bodySecondary.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -1515,35 +1647,44 @@ class _AdminErrorState extends StatelessWidget {
 
   final String title;
   final String message;
-
   final Future<void> Function() onRetry;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(26),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         children: [
-          const Icon(Icons.error_outline, size: 34, color: AppColors.error),
+          Icon(Icons.error_outline, size: 34, color: colors.error),
+
           const SizedBox(height: 12),
+
           Text(
             title,
             textAlign: TextAlign.center,
-            style: AppTypography.sectionTitle,
+            style: AppTypography.sectionTitle.copyWith(color: colors.onSurface),
           ),
+
           const SizedBox(height: 7),
+
           Text(
             message,
             textAlign: TextAlign.center,
-            style: AppTypography.bodySecondary,
+            style: AppTypography.bodySecondary.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
           ),
+
           const SizedBox(height: 16),
+
           OutlinedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),
@@ -1563,26 +1704,29 @@ class _AdminInlineError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.07),
+        color: colors.error.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.22)),
+        border: Border.all(color: colors.error.withValues(alpha: 0.28)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: AppColors.error, size: 19),
+          Icon(Icons.error_outline, color: colors.error, size: 19),
+
           const SizedBox(width: 9),
+
           Expanded(
             child: Text(
               message,
-              style: AppTypography.bodySecondary.copyWith(
-                color: AppColors.error,
-              ),
+              style: AppTypography.bodySecondary.copyWith(color: colors.error),
             ),
           ),
+
           IconButton(
             tooltip: 'Close',
             onPressed: onClose,
@@ -1607,36 +1751,44 @@ class _AdminEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 52),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         children: [
           Container(
             width: 64,
             height: 64,
-            decoration: const BoxDecoration(
-              color: AppColors.primarySoft,
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 29, color: AppColors.primaryDark),
+            child: Icon(icon, size: 29, color: colors.primary),
           ),
+
           const SizedBox(height: 15),
+
           Text(
             title,
             textAlign: TextAlign.center,
-            style: AppTypography.sectionTitle,
+            style: AppTypography.sectionTitle.copyWith(color: colors.onSurface),
           ),
+
           const SizedBox(height: 7),
+
           Text(
             description,
             textAlign: TextAlign.center,
-            style: AppTypography.bodySecondary,
+            style: AppTypography.bodySecondary.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -1657,6 +1809,8 @@ class _MiniEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 18),
       child: Row(
@@ -1664,20 +1818,34 @@ class _MiniEmptyState extends StatelessWidget {
           Container(
             width: 48,
             height: 48,
-            decoration: const BoxDecoration(
-              color: AppColors.primarySoft,
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: AppColors.primary),
+            child: Icon(icon, color: colors.primary),
           ),
+
           const SizedBox(width: 12),
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTypography.cardTitle),
+                Text(
+                  title,
+                  style: AppTypography.cardTitle.copyWith(
+                    color: colors.onSurface,
+                  ),
+                ),
+
                 const SizedBox(height: 3),
-                Text(description, style: AppTypography.caption),
+
+                Text(
+                  description,
+                  style: AppTypography.caption.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1692,28 +1860,34 @@ class _AdminAccessNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
+        color: colors.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             Icons.admin_panel_settings_outlined,
-            color: AppColors.primary,
+            color: colors.primary,
             size: 20,
           ),
-          SizedBox(width: 10),
+
+          const SizedBox(width: 10),
+
           Expanded(
             child: Text(
               'Administrator functions are protected by backend authorization. '
               'Only authorized administrator accounts should be able to access these operations.',
-              style: AppTypography.caption,
+              style: AppTypography.caption.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -1753,7 +1927,7 @@ class _AdminSidebar extends StatelessWidget {
 
           const SizedBox(height: 34),
 
-          _SidebarLabel(text: 'ADMINISTRATION'),
+          const _SidebarLabel(text: 'ADMINISTRATION'),
 
           _AdminNavItem(
             icon: Icons.dashboard_outlined,
@@ -1796,9 +1970,11 @@ class _AdminSidebar extends StatelessWidget {
                     'assets/images/abakascan_auth_hero.png',
                     fit: BoxFit.cover,
                   ),
+
                   Container(
                     color: AppColors.primaryDark.withValues(alpha: 0.48),
                   ),
+
                   Align(
                     alignment: Alignment.bottomLeft,
                     child: Padding(
@@ -1867,9 +2043,7 @@ class _AdminNavItem extends StatelessWidget {
 
   final IconData icon;
   final String label;
-
   final bool selected;
-
   final VoidCallback? onTap;
 
   @override
@@ -1891,7 +2065,9 @@ class _AdminNavItem extends StatelessWidget {
             child: Row(
               children: [
                 Icon(icon, size: 19, color: foreground),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: Text(
                     label,
@@ -1930,8 +2106,10 @@ class _AdminDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Drawer(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       child: SafeArea(
         child: Column(
           children: [
@@ -1978,6 +2156,7 @@ class _AdminDrawer extends StatelessWidget {
             ),
 
             const Spacer(),
+
             const Divider(),
 
             _DrawerItem(
@@ -2007,19 +2186,19 @@ class _DrawerItem extends StatelessWidget {
 
   final IconData icon;
   final String label;
-
   final bool selected;
-
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       child: ListTile(
         selected: selected,
-        selectedColor: AppColors.primaryDark,
-        selectedTileColor: AppColors.primarySoft,
+        selectedColor: colors.onPrimaryContainer,
+        selectedTileColor: colors.primaryContainer,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         leading: Icon(icon),
         title: Text(label),
@@ -2093,6 +2272,8 @@ class _CreateAdminDialogState extends State<_CreateAdminDialog> {
   Widget build(BuildContext context) {
     final admin = context.watch<AdminProvider>();
 
+    final colors = Theme.of(context).colorScheme;
+
     return AlertDialog(
       titlePadding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
       contentPadding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
@@ -2102,16 +2283,18 @@ class _CreateAdminDialogState extends State<_CreateAdminDialog> {
           Container(
             width: 44,
             height: 44,
-            decoration: const BoxDecoration(
-              color: AppColors.primarySoft,
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.admin_panel_settings_outlined,
-              color: AppColors.primaryDark,
+              color: colors.primary,
             ),
           ),
+
           const SizedBox(width: 12),
+
           const Expanded(child: Text('Create Administrator')),
         ],
       ),
@@ -2124,9 +2307,11 @@ class _CreateAdminDialogState extends State<_CreateAdminDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Create an additional authorized ABAKASCAN administrator account.',
-                  style: AppTypography.bodySecondary,
+                  style: AppTypography.bodySecondary.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
 
                 const SizedBox(height: 18),
@@ -2221,17 +2406,18 @@ class _CreateAdminDialogState extends State<_CreateAdminDialog> {
 
                 if (admin.createAdminError != null) ...[
                   const SizedBox(height: 14),
+
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.07),
+                      color: colors.error.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       admin.createAdminError!,
                       style: AppTypography.bodySecondary.copyWith(
-                        color: AppColors.error,
+                        color: colors.error,
                       ),
                     ),
                   ),
@@ -2243,24 +2429,28 @@ class _CreateAdminDialogState extends State<_CreateAdminDialog> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceMuted,
+                    color: colors.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Row(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
                         Icons.verified_user_outlined,
                         size: 18,
-                        color: AppColors.primary,
+                        color: colors.primary,
                       ),
-                      SizedBox(width: 8),
+
+                      const SizedBox(width: 8),
+
                       Expanded(
                         child: Text(
                           'This creates an ADMIN authorization account. '
                           'It does not assign a farmer, processor, cooperative, buyer, '
                           'researcher, or other stakeholder role.',
-                          style: AppTypography.caption,
+                          style: AppTypography.caption.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ],
@@ -2282,8 +2472,12 @@ class _CreateAdminDialogState extends State<_CreateAdminDialog> {
                 },
           child: const Text('Cancel'),
         ),
+
         FilledButton.icon(
-          style: FilledButton.styleFrom(backgroundColor: AppColors.primaryDark),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primaryDark,
+            foregroundColor: Colors.white,
+          ),
           onPressed: admin.creatingAdmin ? null : _submit,
           icon: admin.creatingAdmin
               ? const SizedBox(
@@ -2317,12 +2511,16 @@ void _showClassificationDetails(
   showDialog<void>(
     context: context,
     builder: (dialogContext) {
+      final colors = Theme.of(dialogContext).colorScheme;
+
       return AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.analytics_outlined, color: AppColors.primary),
-            SizedBox(width: 10),
-            Expanded(child: Text('Classification Details')),
+            Icon(Icons.analytics_outlined, color: colors.primary),
+
+            const SizedBox(width: 10),
+
+            const Expanded(child: Text('Classification Details')),
           ],
         ),
         content: SizedBox(
@@ -2336,7 +2534,7 @@ void _showClassificationDetails(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.primarySoft,
+                    color: colors.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -2345,16 +2543,18 @@ void _showClassificationDetails(
                       Text(
                         'PREDICTED GRADE',
                         style: AppTypography.label.copyWith(
-                          color: AppColors.primary,
+                          color: colors.primary,
                           fontSize: 9,
                           letterSpacing: 1.3,
                         ),
                       ),
+
                       const SizedBox(height: 5),
+
                       Text(
                         record.predictedGrade,
                         style: AppTypography.pageTitle.copyWith(
-                          color: AppColors.primaryDark,
+                          color: colors.onPrimaryContainer,
                           fontSize: 28,
                         ),
                       ),
@@ -2411,6 +2611,7 @@ void _showClassificationDetails(
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primaryDark,
+              foregroundColor: Colors.white,
             ),
             onPressed: () {
               Navigator.pop(dialogContext);
@@ -2432,28 +2633,37 @@ class _DialogDetail extends StatelessWidget {
 
   final String label;
   final String value;
-
   final bool selectable;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+          style: AppTypography.caption.copyWith(color: colors.onSurfaceVariant),
         ),
+
         const SizedBox(height: 4),
+
         if (selectable)
           SelectableText(
             value,
-            style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+            style: AppTypography.body.copyWith(
+              color: colors.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
           )
         else
           Text(
             value,
-            style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+            style: AppTypography.body.copyWith(
+              color: colors.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
           ),
       ],
     );
@@ -2471,17 +2681,21 @@ class _Brand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = darkText ? AppColors.primaryDark : Colors.white;
+    final colors = Theme.of(context).colorScheme;
+
+    final textColor = darkText ? colors.onSurface : Colors.white;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           Icons.eco_outlined,
-          color: darkText ? AppColors.primary : AppColors.fiberBeige,
+          color: darkText ? colors.primary : AppColors.fiberBeige,
           size: 24,
         ),
+
         const SizedBox(width: 9),
+
         Text(
           'ABAKASCAN',
           style: AppTypography.label.copyWith(

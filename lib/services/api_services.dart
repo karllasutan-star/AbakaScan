@@ -314,10 +314,81 @@ class AuthService {
     return _authResultFromResponse(data);
   }
 
-  Future<AuthResult> register(RegisterRequest request) async {
+  Future<RegistrationPendingResponse> register(RegisterRequest request) async {
     final data = await _apiClient.post('/register', body: request.toJson());
 
-    return _authResultFromResponse(data);
+    if (data is! Map<String, dynamic>) {
+      throw const ApiException(
+        message: 'The registration response is invalid.',
+      );
+    }
+
+    return RegistrationPendingResponse.fromJson(data);
+  }
+
+  Future<EmailVerificationResponse> verifyEmail(
+    VerifyEmailRequest request,
+  ) async {
+    final data = await _apiClient.post('/verify-email', body: request.toJson());
+
+    if (data is! Map<String, dynamic>) {
+      throw const ApiException(
+        message: 'The email verification response is invalid.',
+      );
+    }
+
+    return EmailVerificationResponse.fromJson(data);
+  }
+
+  Future<EmailVerificationResponse> resendVerification(
+    ResendVerificationRequest request,
+  ) async {
+    final data = await _apiClient.post(
+      '/resend-verification',
+      body: request.toJson(),
+    );
+
+    if (data is! Map<String, dynamic>) {
+      throw const ApiException(
+        message: 'The resend verification response is invalid.',
+      );
+    }
+
+    return EmailVerificationResponse.fromJson(data);
+  }
+
+  Future<PasswordResetResponse> forgotPassword(
+    ForgotPasswordRequest request,
+  ) async {
+    final data = await _apiClient.post(
+      '/forgot-password',
+      body: request.toJson(),
+    );
+
+    if (data is! Map<String, dynamic>) {
+      throw const ApiException(
+        message: 'The server returned an invalid password reset response.',
+      );
+    }
+
+    return PasswordResetResponse.fromJson(data);
+  }
+
+  Future<PasswordResetResponse> resetPassword(
+    ResetPasswordRequest request,
+  ) async {
+    final data = await _apiClient.post(
+      '/reset-password',
+      body: request.toJson(),
+    );
+
+    if (data is! Map<String, dynamic>) {
+      throw const ApiException(
+        message: 'The server returned an invalid password reset response.',
+      );
+    }
+
+    return PasswordResetResponse.fromJson(data);
   }
 
   Future<UserModel> getProfile(String token) async {

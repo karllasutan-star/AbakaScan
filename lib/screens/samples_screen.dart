@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../utils/app_navigation.dart';
 import '../app/theme.dart';
 import '../providers/app_providers.dart';
 
@@ -14,32 +15,27 @@ class SamplesScreen extends StatelessWidget {
   const SamplesScreen({super.key});
 
   void _returnDashboard(BuildContext context) {
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    returnToDashboard(context);
   }
 
   Future<void> _openClassify(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ClassifyScreen()));
+    await openSection(context, const ClassifyScreen());
   }
 
   Future<void> _openHistory(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const HistoryScreen()));
+    await openSection(context, const HistoryScreen());
   }
 
   Future<void> _openReports(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ReportsScreen()));
+    await openSection(context, const ReportsScreen());
   }
 
   Future<void> _openSettings(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    await openSection(context, const SettingsScreen());
   }
 
   Future<void> _openAbout(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const AboutScreen()));
+    await openSection(context, const AboutScreen());
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -62,13 +58,17 @@ class SamplesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final backgroundColor = theme.scaffoldBackgroundColor;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final desktop = constraints.maxWidth >= AppBreakpoints.desktop;
 
         if (desktop) {
           return Scaffold(
-            backgroundColor: AppColors.background,
+            backgroundColor: backgroundColor,
             body: Row(
               children: [
                 SizedBox(
@@ -97,7 +97,6 @@ class SamplesScreen extends StatelessWidget {
                     },
                   ),
                 ),
-
                 Expanded(
                   child: _SamplesBody(
                     onAnalyze: () {
@@ -111,10 +110,10 @@ class SamplesScreen extends StatelessWidget {
         }
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: backgroundColor,
           appBar: AppBar(
-            backgroundColor: AppColors.background,
-            surfaceTintColor: AppColors.background,
+            backgroundColor: backgroundColor,
+            surfaceTintColor: Colors.transparent,
             elevation: 0,
             centerTitle: true,
             leading: IconButton(
@@ -128,7 +127,10 @@ class SamplesScreen extends StatelessWidget {
               },
               icon: const Icon(Icons.arrow_back_rounded),
             ),
-            title: const Text('Samples', style: AppTypography.cardTitle),
+            title: Text(
+              'Samples',
+              style: AppTypography.cardTitle.copyWith(color: colors.onSurface),
+            ),
           ),
           body: _SamplesBody(
             compact: true,
@@ -150,7 +152,6 @@ class _SamplesBody extends StatelessWidget {
   const _SamplesBody({required this.onAnalyze, this.compact = false});
 
   final VoidCallback onAnalyze;
-
   final bool compact;
 
   @override
@@ -200,13 +201,15 @@ class _DesktopHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'REFERENCE LIBRARY',
           style: AppTypography.label.copyWith(
-            color: AppColors.primary,
+            color: colors.primary,
             fontSize: 10,
             fontWeight: FontWeight.w700,
             letterSpacing: 2,
@@ -217,14 +220,20 @@ class _DesktopHeader extends StatelessWidget {
 
         Text(
           'Fiber Samples',
-          style: AppTypography.pageTitle.copyWith(fontSize: 34),
+          style: AppTypography.pageTitle.copyWith(
+            fontSize: 34,
+            color: colors.onSurface,
+          ),
         ),
 
         const SizedBox(height: 7),
 
         Text(
           'A future workspace for verified abaca fiber reference samples.',
-          style: AppTypography.bodySecondary.copyWith(height: 1.5),
+          style: AppTypography.bodySecondary.copyWith(
+            height: 1.5,
+            color: colors.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -329,13 +338,15 @@ class _LibraryStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(compact ? 20 : 26),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -344,14 +355,14 @@ class _LibraryStatus extends StatelessWidget {
           final icon = Container(
             width: 82,
             height: 82,
-            decoration: const BoxDecoration(
-              color: AppColors.primarySoft,
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.collections_bookmark_outlined,
               size: 34,
-              color: AppColors.primaryDark,
+              color: colors.primary,
             ),
           );
 
@@ -364,7 +375,10 @@ class _LibraryStatus extends StatelessWidget {
                 Text(
                   'No approved reference library available',
                   textAlign: stacked ? TextAlign.center : TextAlign.left,
-                  style: AppTypography.sectionTitle.copyWith(fontSize: 21),
+                  style: AppTypography.sectionTitle.copyWith(
+                    fontSize: 21,
+                    color: colors.onSurface,
+                  ),
                 ),
 
                 const SizedBox(height: 8),
@@ -373,7 +387,10 @@ class _LibraryStatus extends StatelessWidget {
                   'ABAKASCAN currently has no approved reference-sample dataset available for display. '
                   'Reference images and grade examples will only be shown when a verified source is available.',
                   textAlign: stacked ? TextAlign.center : TextAlign.left,
-                  style: AppTypography.bodySecondary.copyWith(height: 1.55),
+                  style: AppTypography.bodySecondary.copyWith(
+                    height: 1.55,
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
 
                 const SizedBox(height: 18),
@@ -383,6 +400,7 @@ class _LibraryStatus extends StatelessWidget {
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primaryDark,
+                      foregroundColor: Colors.white,
                     ),
                     onPressed: onAnalyze,
                     icon: const Icon(Icons.camera_alt_outlined),
@@ -415,6 +433,8 @@ class _ReferenceRequirements extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     const items = [
       _ReferenceRequirementData(
         icon: Icons.image_outlined,
@@ -441,14 +461,17 @@ class _ReferenceRequirements extends StatelessWidget {
             Expanded(
               child: Text(
                 'What a reference sample needs',
-                style: AppTypography.sectionTitle.copyWith(fontSize: 18),
+                style: AppTypography.sectionTitle.copyWith(
+                  fontSize: 18,
+                  color: colors.onSurface,
+                ),
               ),
             ),
 
             Text(
               'REFERENCE STANDARD',
               style: AppTypography.label.copyWith(
-                color: AppColors.primary,
+                color: colors.primary,
                 fontSize: 9,
                 letterSpacing: 1.4,
               ),
@@ -465,6 +488,7 @@ class _ReferenceRequirements extends StatelessWidget {
                 children: [
                   for (var index = 0; index < items.length; index++) ...[
                     _ReferenceCard(data: items[index]),
+
                     if (index < items.length - 1) const SizedBox(height: 10),
                   ],
                 ],
@@ -476,6 +500,7 @@ class _ReferenceRequirements extends StatelessWidget {
               children: [
                 for (var index = 0; index < items.length; index++) ...[
                   Expanded(child: _ReferenceCard(data: items[index])),
+
                   if (index < items.length - 1) const SizedBox(width: 12),
                 ],
               ],
@@ -506,12 +531,14 @@ class _ReferenceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -519,25 +546,31 @@ class _ReferenceCard extends StatelessWidget {
           Container(
             width: 44,
             height: 44,
-            decoration: const BoxDecoration(
-              color: AppColors.primarySoft,
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
               shape: BoxShape.circle,
             ),
-            child: Icon(data.icon, color: AppColors.primary, size: 20),
+            child: Icon(data.icon, color: colors.primary, size: 20),
           ),
 
           const SizedBox(height: 13),
 
           Text(
             data.title,
-            style: AppTypography.cardTitle.copyWith(fontSize: 14),
+            style: AppTypography.cardTitle.copyWith(
+              fontSize: 14,
+              color: colors.onSurface,
+            ),
           ),
 
           const SizedBox(height: 5),
 
           Text(
             data.description,
-            style: AppTypography.caption.copyWith(height: 1.5),
+            style: AppTypography.caption.copyWith(
+              height: 1.5,
+              color: colors.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -671,7 +704,6 @@ class _SidebarItem extends StatelessWidget {
   final String label;
 
   final bool selected;
-
   final VoidCallback? onTap;
 
   @override

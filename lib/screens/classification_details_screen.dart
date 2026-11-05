@@ -48,17 +48,19 @@ class _ClassificationDetailsScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
+        final colors = Theme.of(dialogContext).colorScheme;
+
         return AlertDialog(
           icon: Container(
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color: AppColors.error.withValues(alpha: 0.08),
+              color: colors.error.withValues(alpha: 0.10),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.delete_outline_rounded,
-              color: AppColors.error,
+              color: colors.error,
               size: 28,
             ),
           ),
@@ -77,7 +79,7 @@ class _ClassificationDetailsScreenState
               child: const Text('Cancel'),
             ),
             FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+              style: FilledButton.styleFrom(backgroundColor: colors.error),
               onPressed: () {
                 Navigator.pop(dialogContext, true);
               },
@@ -201,13 +203,19 @@ class _ClassificationDetailsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final colors = theme.colorScheme;
+
+    final backgroundColor = theme.scaffoldBackgroundColor;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final desktop = constraints.maxWidth >= AppBreakpoints.desktop;
 
         if (desktop) {
           return Scaffold(
-            backgroundColor: AppColors.background,
+            backgroundColor: backgroundColor,
             body: Row(
               children: [
                 SizedBox(
@@ -238,10 +246,10 @@ class _ClassificationDetailsScreenState
         }
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: backgroundColor,
           appBar: AppBar(
-            backgroundColor: AppColors.background,
-            surfaceTintColor: AppColors.background,
+            backgroundColor: backgroundColor,
+            surfaceTintColor: Colors.transparent,
             elevation: 0,
             centerTitle: true,
             leading: IconButton(
@@ -249,9 +257,9 @@ class _ClassificationDetailsScreenState
               onPressed: _deleting ? null : _backToHistory,
               icon: const Icon(Icons.arrow_back_rounded),
             ),
-            title: const Text(
+            title: Text(
               'Analysis Details',
-              style: AppTypography.cardTitle,
+              style: AppTypography.cardTitle.copyWith(color: colors.onSurface),
             ),
             actions: [
               PopupMenuButton<_DetailsMenuAction>(
@@ -362,7 +370,9 @@ class _DetailsBody extends StatelessWidget {
                     return Column(
                       children: [
                         image,
+
                         const SizedBox(height: 14),
+
                         information,
                       ],
                     );
@@ -372,7 +382,9 @@ class _DetailsBody extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(flex: 6, child: image),
+
                       const SizedBox(width: 18),
+
                       Expanded(flex: 5, child: information),
                     ],
                   );
@@ -408,6 +420,8 @@ class _DesktopHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -418,25 +432,36 @@ class _DesktopHeader extends StatelessWidget {
               Text(
                 'CLASSIFICATION HISTORY',
                 style: AppTypography.label.copyWith(
-                  color: AppColors.primary,
+                  color: colors.primary,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 2,
                 ),
               ),
+
               const SizedBox(height: 8),
+
               Text(
                 'Analysis Details',
-                style: AppTypography.pageTitle.copyWith(fontSize: 34),
+                style: AppTypography.pageTitle.copyWith(
+                  fontSize: 34,
+                  color: colors.onSurface,
+                ),
               ),
+
               const SizedBox(height: 7),
+
               Text(
                 'Review the saved image and classification information for Analysis ${_shortId(record.id)}.',
-                style: AppTypography.bodySecondary.copyWith(height: 1.5),
+                style: AppTypography.bodySecondary.copyWith(
+                  height: 1.5,
+                  color: colors.onSurfaceVariant,
+                ),
               ),
             ],
           ),
         ),
+
         OutlinedButton.icon(
           onPressed: onBack,
           icon: const Icon(Icons.arrow_back_rounded),
@@ -454,6 +479,8 @@ class _MobileRecordHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -463,16 +490,24 @@ class _MobileRecordHeader extends StatelessWidget {
             children: [
               Text(
                 'Analysis ${_shortId(record.id)}',
-                style: AppTypography.cardTitle.copyWith(fontSize: 16),
+                style: AppTypography.cardTitle.copyWith(
+                  fontSize: 16,
+                  color: colors.onSurface,
+                ),
               ),
+
               const SizedBox(height: 4),
+
               Text(
                 _formatDateTime(record.createdAt),
-                style: AppTypography.caption,
+                style: AppTypography.caption.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
               ),
             ],
           ),
         ),
+
         _GradeChip(grade: record.predictedGrade),
       ],
     );
@@ -491,15 +526,17 @@ class _StoredImagePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     final resolvedUrl = _resolveImageUrl(imageUrl);
 
     return Container(
       width: double.infinity,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,29 +571,37 @@ class _StoredImagePanel extends StatelessWidget {
                 Container(
                   width: 38,
                   height: 38,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primarySoft,
+                  decoration: BoxDecoration(
+                    color: colors.primaryContainer,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.image_outlined,
-                    color: AppColors.primary,
+                    color: colors.primary,
                     size: 18,
                   ),
                 ),
+
                 const SizedBox(width: 10),
-                const Expanded(
+
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Submitted Fiber Image',
-                        style: AppTypography.cardTitle,
+                        style: AppTypography.cardTitle.copyWith(
+                          color: colors.onSurface,
+                        ),
                       ),
-                      SizedBox(height: 2),
+
+                      const SizedBox(height: 2),
+
                       Text(
                         'Stored image associated with this analysis',
-                        style: AppTypography.caption,
+                        style: AppTypography.caption.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -575,19 +620,28 @@ class _ImageLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
-      color: AppColors.surfaceMuted,
+      color: colors.surfaceContainerHighest,
       alignment: Alignment.center,
-      child: const Column(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
+          const SizedBox(
             width: 30,
             height: 30,
             child: CircularProgressIndicator(strokeWidth: 2.5),
           ),
-          SizedBox(height: 12),
-          Text('Loading image...', style: AppTypography.bodySecondary),
+
+          const SizedBox(height: 12),
+
+          Text(
+            'Loading image...',
+            style: AppTypography.bodySecondary.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
@@ -605,12 +659,15 @@ class _ImageFallback extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         Image.asset('assets/images/abakascan_auth_hero.png', fit: BoxFit.cover),
+
         Container(color: AppColors.primaryDark.withValues(alpha: 0.76)),
+
         const Positioned.fill(
           child: IgnorePointer(
             child: CustomPaint(painter: _FiberLinePainter()),
           ),
         ),
+
         Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -624,7 +681,9 @@ class _ImageFallback extends StatelessWidget {
                   color: AppColors.fiberBeige,
                   size: 42,
                 ),
+
                 const SizedBox(height: 12),
+
                 Text(
                   unavailable
                       ? 'Stored image unavailable'
@@ -632,7 +691,9 @@ class _ImageFallback extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: AppTypography.cardTitle.copyWith(color: Colors.white),
                 ),
+
                 const SizedBox(height: 5),
+
                 Text(
                   unavailable
                       ? 'The image associated with this record could not be displayed.'
@@ -662,15 +723,17 @@ class _ClassificationInformation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     final confidence = record.confidencePercentage.clamp(0.0, 100.0).toDouble();
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -678,7 +741,7 @@ class _ClassificationInformation extends StatelessWidget {
           Text(
             'SAVED CLASSIFICATION',
             style: AppTypography.label.copyWith(
-              color: AppColors.primary,
+              color: colors.primary,
               fontSize: 9,
               letterSpacing: 1.7,
               fontWeight: FontWeight.w700,
@@ -695,7 +758,7 @@ class _ClassificationInformation extends StatelessWidget {
                   constraints: const BoxConstraints(minHeight: 145),
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: AppColors.primarySoft,
+                    color: colors.primaryContainer,
                     borderRadius: BorderRadius.circular(15),
                   ),
                   child: Column(
@@ -705,16 +768,18 @@ class _ClassificationInformation extends StatelessWidget {
                       Text(
                         'PREDICTED GRADE',
                         style: AppTypography.label.copyWith(
-                          color: AppColors.primary,
+                          color: colors.primary,
                           fontSize: 8,
                           letterSpacing: 1.3,
                         ),
                       ),
+
                       const SizedBox(height: 8),
+
                       Text(
                         record.predictedGrade,
                         style: AppTypography.pageTitle.copyWith(
-                          color: AppColors.primaryDark,
+                          color: colors.onPrimaryContainer,
                           fontSize: 30,
                           height: 1.02,
                         ),
@@ -734,7 +799,10 @@ class _ClassificationInformation extends StatelessWidget {
 
           Text(
             'Analysis Information',
-            style: AppTypography.cardTitle.copyWith(fontSize: 15),
+            style: AppTypography.cardTitle.copyWith(
+              fontSize: 15,
+              color: colors.onSurface,
+            ),
           ),
 
           const SizedBox(height: 12),
@@ -766,6 +834,7 @@ class _ClassificationInformation extends StatelessWidget {
           if (record.modelName != null &&
               record.modelName!.trim().isNotEmpty) ...[
             const Divider(height: 23),
+
             _DetailRow(label: 'Model', value: record.modelName!),
           ],
 
@@ -775,22 +844,23 @@ class _ClassificationInformation extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(13),
             decoration: BoxDecoration(
-              color: AppColors.surfaceMuted,
+              color: colors.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(11),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.history_outlined,
-                  size: 19,
-                  color: AppColors.primary,
-                ),
+                Icon(Icons.history_outlined, size: 19, color: colors.primary),
+
                 const SizedBox(width: 9),
+
                 Expanded(
                   child: Text(
                     'This is a saved classification record from your analysis history.',
-                    style: AppTypography.caption.copyWith(height: 1.45),
+                    style: AppTypography.caption.copyWith(
+                      height: 1.45,
+                      color: colors.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ],
@@ -809,6 +879,8 @@ class _ConfidenceCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return SizedBox(
       width: 108,
       height: 108,
@@ -821,26 +893,30 @@ class _ConfidenceCircle extends StatelessWidget {
             child: CircularProgressIndicator(
               value: confidence / 100,
               strokeWidth: 9,
-              backgroundColor: AppColors.surfaceSage,
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                AppColors.primary,
-              ),
+              backgroundColor: colors.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
             ),
           ),
+
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 '${confidence.toStringAsFixed(0)}%',
                 style: AppTypography.sectionTitle.copyWith(
-                  color: AppColors.primaryDark,
+                  color: colors.onSurface,
                   fontSize: 22,
                 ),
               ),
+
               const SizedBox(height: 2),
+
               Text(
                 'Confidence',
-                style: AppTypography.caption.copyWith(fontSize: 8),
+                style: AppTypography.caption.copyWith(
+                  fontSize: 8,
+                  color: colors.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -864,16 +940,24 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     final valueWidget = selectable
         ? SelectableText(
             value,
             textAlign: TextAlign.right,
-            style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+            style: AppTypography.body.copyWith(
+              color: colors.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
           )
         : Text(
             value,
             textAlign: TextAlign.right,
-            style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+            style: AppTypography.body.copyWith(
+              color: colors.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
           );
 
     return Row(
@@ -881,9 +965,16 @@ class _DetailRow extends StatelessWidget {
       children: [
         Expanded(
           flex: 4,
-          child: Text(label, style: AppTypography.bodySecondary),
+          child: Text(
+            label,
+            style: AppTypography.bodySecondary.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
         ),
+
         const SizedBox(width: 14),
+
         Expanded(flex: 6, child: valueWidget),
       ],
     );
@@ -912,6 +1003,8 @@ class _RecordActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     final backButton = SizedBox(
       height: 51,
       child: OutlinedButton.icon(
@@ -925,7 +1018,7 @@ class _RecordActions extends StatelessWidget {
       height: 51,
       child: FilledButton.icon(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.error,
+          backgroundColor: colors.error,
           foregroundColor: Colors.white,
         ),
         onPressed: deleting ? null : onDelete,
@@ -954,9 +1047,9 @@ class _RecordActions extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Row(children: [backButton, const Spacer(), deleteButton]),
     );
@@ -984,15 +1077,10 @@ class _DetailsSidebar extends StatelessWidget {
   final VoidCallback onHistory;
 
   final Future<void> Function() onClassify;
-
   final Future<void> Function() onSamples;
-
   final Future<void> Function() onReports;
-
   final Future<void> Function() onSettings;
-
   final Future<void> Function() onAbout;
-
   final Future<void> Function() onLogout;
 
   final bool disabled;
@@ -1062,6 +1150,7 @@ class _DetailsSidebar extends StatelessWidget {
                     'assets/images/abakascan_auth_hero.png',
                     fit: BoxFit.cover,
                   ),
+
                   Container(
                     color: AppColors.primaryDark.withValues(alpha: 0.50),
                   ),
@@ -1101,6 +1190,7 @@ class _SidebarItem extends StatelessWidget {
   final String label;
 
   final bool selected;
+
   final VoidCallback? onTap;
 
   @override
@@ -1124,7 +1214,9 @@ class _SidebarItem extends StatelessWidget {
             child: Row(
               children: [
                 Icon(icon, size: 19, color: foreground),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: Text(
                     label,
@@ -1155,16 +1247,18 @@ class _GradeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.primarySoft,
+        color: colors.primaryContainer,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         grade,
         style: AppTypography.caption.copyWith(
-          color: AppColors.primaryDark,
+          color: colors.onPrimaryContainer,
           fontWeight: FontWeight.w700,
           fontSize: 9,
         ),
@@ -1186,7 +1280,9 @@ class _Brand extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         const Icon(Icons.eco_outlined, color: AppColors.fiberBeige, size: 24),
+
         const SizedBox(width: 9),
+
         Text(
           'ABAKASCAN',
           style: AppTypography.label.copyWith(

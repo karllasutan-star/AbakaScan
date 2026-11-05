@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../utils/app_navigation.dart';
 import '../app/theme.dart';
 import '../models/models.dart';
 import '../providers/app_providers.dart';
@@ -77,11 +78,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _handleExpiredSession() async {
     context.read<ImageSelectionProvider>().removeImage();
-
     context.read<ClassificationProvider>().reset();
-
     context.read<HistoryProvider>().reset();
-
     context.read<AdminProvider>().reset();
 
     await context.read<AuthProvider>().expireSession();
@@ -94,12 +92,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   void _returnDashboard() {
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    returnToDashboard(context);
   }
 
   Future<void> _openClassify() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ClassifyScreen()));
+    await openSection(context, const ClassifyScreen());
 
     if (!mounted) {
       return;
@@ -109,8 +106,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Future<void> _openHistory() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const HistoryScreen()));
+    await openSection(context, const HistoryScreen());
 
     if (!mounted) {
       return;
@@ -120,32 +116,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Future<void> _openProfile() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+    await openSection(context, const ProfileScreen());
   }
 
   Future<void> _openSamples() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const SamplesScreen()));
+    await openSection(context, const SamplesScreen());
   }
 
   Future<void> _openSettings() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    await openSection(context, const SettingsScreen());
   }
 
   Future<void> _openAbout() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const AboutScreen()));
+    await openSection(context, const AboutScreen());
   }
 
   Future<void> _logout() async {
     context.read<ImageSelectionProvider>().removeImage();
-
     context.read<ClassificationProvider>().reset();
-
     context.read<HistoryProvider>().reset();
-
     context.read<AdminProvider>().reset();
 
     await context.read<AuthProvider>().logout();
@@ -159,13 +148,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final backgroundColor = theme.scaffoldBackgroundColor;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final desktop = constraints.maxWidth >= AppBreakpoints.desktop;
 
         if (desktop) {
           return Scaffold(
-            backgroundColor: AppColors.background,
+            backgroundColor: backgroundColor,
             body: Row(
               children: [
                 SizedBox(
@@ -193,10 +186,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
         }
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: backgroundColor,
           appBar: AppBar(
-            backgroundColor: AppColors.background,
-            surfaceTintColor: AppColors.background,
+            backgroundColor: backgroundColor,
+            surfaceTintColor: Colors.transparent,
             elevation: 0,
             centerTitle: true,
             leading: IconButton(
@@ -210,7 +203,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
               },
               icon: const Icon(Icons.arrow_back_rounded),
             ),
-            title: const Text('Reports', style: AppTypography.cardTitle),
+            title: Text(
+              'Reports',
+              style: AppTypography.cardTitle.copyWith(color: colors.onSurface),
+            ),
             actions: [
               IconButton(
                 tooltip: 'Refresh',
@@ -283,9 +279,7 @@ class _ReportsBody extends StatelessWidget {
   });
 
   final Future<void> Function() onRefresh;
-
   final Future<void> Function() onClassify;
-
   final Future<void> Function() onHistory;
 
   final bool compact;
@@ -348,7 +342,9 @@ class _ReportsBody extends StatelessWidget {
                         return Column(
                           children: [
                             distribution,
+
                             const SizedBox(height: 14),
+
                             confidence,
                           ],
                         );
@@ -358,7 +354,9 @@ class _ReportsBody extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(flex: 6, child: distribution),
+
                           const SizedBox(width: 16),
+
                           Expanded(flex: 4, child: confidence),
                         ],
                       );
@@ -390,27 +388,39 @@ class _DesktopHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'ANALYTICS',
           style: AppTypography.label.copyWith(
-            color: AppColors.primary,
+            color: colors.primary,
             fontSize: 10,
             fontWeight: FontWeight.w700,
             letterSpacing: 2,
           ),
         ),
+
         const SizedBox(height: 8),
+
         Text(
           'Classification Reports',
-          style: AppTypography.pageTitle.copyWith(fontSize: 34),
+          style: AppTypography.pageTitle.copyWith(
+            fontSize: 34,
+            color: colors.onSurface,
+          ),
         ),
+
         const SizedBox(height: 7),
+
         Text(
           'A summary of your saved ABAKASCAN classification records.',
-          style: AppTypography.bodySecondary.copyWith(height: 1.5),
+          style: AppTypography.bodySecondary.copyWith(
+            height: 1.5,
+            color: colors.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -434,6 +444,7 @@ class _MobileHeader extends StatelessWidget {
             'assets/images/abakascan_auth_hero.png',
             fit: BoxFit.cover,
           ),
+
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -447,6 +458,7 @@ class _MobileHeader extends StatelessWidget {
               ),
             ),
           ),
+
           Padding(
             padding: const EdgeInsets.all(18),
             child: Column(
@@ -461,7 +473,9 @@ class _MobileHeader extends StatelessWidget {
                     height: 1.04,
                   ),
                 ),
+
                 const SizedBox(height: 8),
+
                 Text(
                   'Analytics based on your saved classifications.',
                   style: AppTypography.caption.copyWith(
@@ -534,6 +548,7 @@ class _SummaryCards extends StatelessWidget {
           children: [
             for (var index = 0; index < cards.length; index++) ...[
               Expanded(child: _SummaryCard(data: cards[index])),
+
               if (index < cards.length - 1) const SizedBox(width: 12),
             ],
           ],
@@ -570,6 +585,7 @@ class _SummaryCard extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
@@ -581,7 +597,9 @@ class _SummaryCard extends StatelessWidget {
             ),
             child: Icon(data.icon, size: 19, color: AppColors.primary),
           ),
-          const Spacer(),
+
+          const SizedBox(height: 18),
+
           Text(
             data.value,
             maxLines: 1,
@@ -591,7 +609,9 @@ class _SummaryCard extends StatelessWidget {
               fontSize: 20,
             ),
           ),
+
           const SizedBox(height: 3),
+
           Text(data.label, style: AppTypography.caption),
         ],
       ),
@@ -624,6 +644,7 @@ class _GradeDistribution extends StatelessWidget {
               entry: analytics.gradeDistribution[index],
               total: analytics.total,
             ),
+
             if (index < analytics.gradeDistribution.length - 1)
               const SizedBox(height: 15),
           ],
@@ -637,11 +658,12 @@ class _DistributionRow extends StatelessWidget {
   const _DistributionRow({required this.entry, required this.total});
 
   final MapEntry<String, int> entry;
-
   final int total;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     final percentage = total == 0 ? 0.0 : entry.value / total;
 
     return Column(
@@ -653,35 +675,45 @@ class _DistributionRow extends StatelessWidget {
                 entry.key,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypography.cardTitle.copyWith(fontSize: 13),
+                style: AppTypography.cardTitle.copyWith(
+                  fontSize: 13,
+                  color: colors.onSurface,
+                ),
               ),
             ),
+
             Text(
               '${entry.value}',
               style: AppTypography.caption.copyWith(
-                color: AppColors.primaryDark,
+                color: colors.primary,
                 fontWeight: FontWeight.w700,
               ),
             ),
+
             const SizedBox(width: 8),
+
             SizedBox(
               width: 45,
               child: Text(
                 '${(percentage * 100).toStringAsFixed(0)}%',
                 textAlign: TextAlign.right,
-                style: AppTypography.caption,
+                style: AppTypography.caption.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
               ),
             ),
           ],
         ),
+
         const SizedBox(height: 7),
+
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: LinearProgressIndicator(
             value: percentage,
             minHeight: 8,
-            backgroundColor: AppColors.surfaceSage,
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+            backgroundColor: colors.surfaceContainerHighest,
+            valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
           ),
         ),
       ],
@@ -700,6 +732,8 @@ class _ConfidencePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return _ReportPanel(
       title: 'Confidence Summary',
       subtitle: 'Confidence values from your saved records.',
@@ -733,18 +767,25 @@ class _ConfidencePanel extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.primarySoft,
+              color: colors.primaryContainer,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Latest Grade', style: AppTypography.caption),
+                Text(
+                  'Latest Grade',
+                  style: AppTypography.caption.copyWith(
+                    color: colors.onPrimaryContainer.withValues(alpha: 0.75),
+                  ),
+                ),
+
                 const SizedBox(height: 5),
+
                 Text(
                   analytics.latestGrade,
                   style: AppTypography.sectionTitle.copyWith(
-                    color: AppColors.primaryDark,
+                    color: colors.onPrimaryContainer,
                     fontSize: 20,
                   ),
                 ),
@@ -770,28 +811,39 @@ class _ConfidenceMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Row(
       children: [
         Container(
           width: 42,
           height: 42,
-          decoration: const BoxDecoration(
-            color: AppColors.surfaceMuted,
+          decoration: BoxDecoration(
+            color: colors.surfaceContainerHighest,
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: AppColors.primary, size: 20),
+          child: Icon(icon, color: colors.primary, size: 20),
         ),
+
         const SizedBox(width: 11),
+
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: AppTypography.caption),
+              Text(
+                title,
+                style: AppTypography.caption.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+
               const SizedBox(height: 2),
+
               Text(
                 value,
                 style: AppTypography.cardTitle.copyWith(
-                  color: AppColors.primaryDark,
+                  color: colors.onSurface,
                   fontSize: 15,
                 ),
               ),
@@ -827,6 +879,7 @@ class _RecentActivity extends StatelessWidget {
         children: [
           for (var index = 0; index < records.length; index++) ...[
             _ActivityRow(record: records[index]),
+
             if (index < records.length - 1) const Divider(height: 22),
           ],
         ],
@@ -842,6 +895,8 @@ class _ActivityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     final confidence = _confidence(record.confidencePercentage);
 
     return Row(
@@ -849,14 +904,14 @@ class _ActivityRow extends StatelessWidget {
         Container(
           width: 44,
           height: 44,
-          decoration: const BoxDecoration(
-            color: AppColors.primarySoft,
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
             shape: BoxShape.circle,
           ),
-          child: const Icon(
+          child: Icon(
             Icons.analytics_outlined,
             size: 20,
-            color: AppColors.primary,
+            color: colors.primary,
           ),
         ),
 
@@ -868,12 +923,19 @@ class _ActivityRow extends StatelessWidget {
             children: [
               Text(
                 'Analysis ${_shortId(record.id)}',
-                style: AppTypography.cardTitle.copyWith(fontSize: 13),
+                style: AppTypography.cardTitle.copyWith(
+                  fontSize: 13,
+                  color: colors.onSurface,
+                ),
               ),
+
               const SizedBox(height: 3),
+
               Text(
                 _formatDateTime(record.createdAt),
-                style: AppTypography.caption,
+                style: AppTypography.caption.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -887,23 +949,25 @@ class _ActivityRow extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.primarySoft,
+                color: colors.primaryContainer,
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
                 record.predictedGrade,
                 style: AppTypography.caption.copyWith(
-                  color: AppColors.primaryDark,
+                  color: colors.onPrimaryContainer,
                   fontWeight: FontWeight.w700,
                   fontSize: 9,
                 ),
               ),
             ),
+
             const SizedBox(height: 5),
+
             Text(
               '${confidence.toStringAsFixed(0)}%',
               style: AppTypography.caption.copyWith(
-                color: AppColors.primaryDark,
+                color: colors.primary,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -928,19 +992,22 @@ class _ReportPanel extends StatelessWidget {
 
   final String title;
   final String subtitle;
+
   final Widget child;
 
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -953,13 +1020,24 @@ class _ReportPanel extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: AppTypography.cardTitle.copyWith(fontSize: 15),
+                      style: AppTypography.cardTitle.copyWith(
+                        fontSize: 15,
+                        color: colors.onSurface,
+                      ),
                     ),
+
                     const SizedBox(height: 3),
-                    Text(subtitle, style: AppTypography.caption),
+
+                    Text(
+                      subtitle,
+                      style: AppTypography.caption.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ),
               ),
+
               ?trailing,
             ],
           ),
@@ -984,44 +1062,58 @@ class _EmptyReports extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 58),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         children: [
           Container(
             width: 68,
             height: 68,
-            decoration: const BoxDecoration(
-              color: AppColors.primarySoft,
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.bar_chart_rounded,
-              color: AppColors.primaryDark,
+              color: colors.primary,
               size: 31,
             ),
           ),
+
           const SizedBox(height: 18),
+
           Text(
             'No report data yet',
-            style: AppTypography.sectionTitle.copyWith(fontSize: 20),
+            style: AppTypography.sectionTitle.copyWith(
+              fontSize: 20,
+              color: colors.onSurface,
+            ),
           ),
+
           const SizedBox(height: 7),
-          const Text(
+
+          Text(
             'Reports are created from your saved classification history. Analyze a fiber image to begin.',
             textAlign: TextAlign.center,
-            style: AppTypography.bodySecondary,
+            style: AppTypography.bodySecondary.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
           ),
+
           const SizedBox(height: 20),
+
           FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primaryDark,
+              foregroundColor: Colors.white,
             ),
             onPressed: onClassify,
             icon: const Icon(Icons.camera_alt_outlined),
@@ -1038,19 +1130,28 @@ class _LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 60),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          CircularProgressIndicator(strokeWidth: 2.5),
-          SizedBox(height: 14),
-          Text('Loading report data...', style: AppTypography.bodySecondary),
+          const CircularProgressIndicator(strokeWidth: 2.5),
+
+          const SizedBox(height: 14),
+
+          Text(
+            'Loading report data...',
+            style: AppTypography.bodySecondary.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
@@ -1061,29 +1162,36 @@ class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.message, required this.onRetry});
 
   final String message;
-
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         children: [
-          const Icon(Icons.error_outline, color: AppColors.error, size: 30),
+          Icon(Icons.error_outline, color: colors.error, size: 30),
+
           const SizedBox(height: 11),
+
           Text(
             message,
             textAlign: TextAlign.center,
-            style: AppTypography.bodySecondary,
+            style: AppTypography.bodySecondary.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
           ),
+
           const SizedBox(height: 15),
+
           OutlinedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),
@@ -1249,7 +1357,9 @@ class _SidebarItem extends StatelessWidget {
             child: Row(
               children: [
                 Icon(icon, size: 19, color: foreground),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: Text(
                     label,
@@ -1282,7 +1392,9 @@ class _Brand extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         const Icon(Icons.eco_outlined, color: AppColors.fiberBeige, size: 24),
+
         const SizedBox(width: 9),
+
         Text(
           'ABAKASCAN',
           style: AppTypography.label.copyWith(

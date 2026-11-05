@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../app/theme.dart';
 import '../providers/app_providers.dart';
 
+import '../utils/app_navigation.dart';
 import 'about_screen.dart';
 import 'classify_screen.dart';
 import 'history_screen.dart';
@@ -15,37 +16,31 @@ class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   void _returnDashboard(BuildContext context) {
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    returnToDashboard(context);
   }
 
   Future<void> _openClassify(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ClassifyScreen()));
+    await openSection(context, const ClassifyScreen());
   }
 
   Future<void> _openHistory(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const HistoryScreen()));
+    await openSection(context, const HistoryScreen());
   }
 
   Future<void> _openReports(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ReportsScreen()));
+    await openSection(context, const ReportsScreen());
   }
 
   Future<void> _openSamples(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const SamplesScreen()));
+    await openSection(context, const SamplesScreen());
   }
 
   Future<void> _openSettings(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    await openSection(context, const SettingsScreen());
   }
 
   Future<void> _openAbout(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const AboutScreen()));
+    await openSection(context, const AboutScreen());
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -82,13 +77,19 @@ class ProfileScreen extends StatelessWidget {
 
     final accountRole = authProvider.isAdmin ? 'Administrator' : 'User';
 
+    final theme = Theme.of(context);
+
+    final colors = theme.colorScheme;
+
+    final backgroundColor = theme.scaffoldBackgroundColor;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final desktop = constraints.maxWidth >= AppBreakpoints.desktop;
 
         if (desktop) {
           return Scaffold(
-            backgroundColor: AppColors.background,
+            backgroundColor: backgroundColor,
             body: Row(
               children: [
                 SizedBox(
@@ -126,12 +127,6 @@ class ProfileScreen extends StatelessWidget {
                     fullName: fullName,
                     email: email,
                     accountRole: accountRole,
-                    onSettings: () {
-                      _openSettings(context);
-                    },
-                    onLogout: () {
-                      _logout(context);
-                    },
                   ),
                 ),
               ],
@@ -140,10 +135,10 @@ class ProfileScreen extends StatelessWidget {
         }
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: backgroundColor,
           appBar: AppBar(
-            backgroundColor: AppColors.background,
-            surfaceTintColor: AppColors.background,
+            backgroundColor: backgroundColor,
+            surfaceTintColor: Colors.transparent,
             elevation: 0,
             centerTitle: true,
             leading: IconButton(
@@ -157,7 +152,10 @@ class ProfileScreen extends StatelessWidget {
               },
               icon: const Icon(Icons.arrow_back_rounded),
             ),
-            title: const Text('Profile', style: AppTypography.cardTitle),
+            title: Text(
+              'Profile',
+              style: AppTypography.cardTitle.copyWith(color: colors.onSurface),
+            ),
             actions: [
               IconButton(
                 tooltip: 'Settings',
@@ -172,12 +170,6 @@ class ProfileScreen extends StatelessWidget {
             fullName: fullName,
             email: email,
             accountRole: accountRole,
-            onSettings: () {
-              _openSettings(context);
-            },
-            onLogout: () {
-              _logout(context);
-            },
             compact: true,
           ),
           bottomNavigationBar: NavigationBar(
@@ -234,17 +226,12 @@ class _ProfileBody extends StatelessWidget {
     required this.fullName,
     required this.email,
     required this.accountRole,
-    required this.onSettings,
-    required this.onLogout,
     this.compact = false,
   });
 
   final String fullName;
   final String email;
   final String accountRole;
-
-  final VoidCallback onSettings;
-  final VoidCallback onLogout;
 
   final bool compact;
 
@@ -298,20 +285,16 @@ class _ProfileBody extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(flex: 6, child: account),
+
                       const SizedBox(width: 16),
+
                       Expanded(flex: 4, child: access),
                     ],
                   );
                 },
               ),
 
-              const SizedBox(height: 18),
-
-              _ProfileActions(
-                compact: compact,
-                onSettings: onSettings,
-                onLogout: onLogout,
-              ),
+              const SizedBox(height: 30),
             ],
           ),
         ),
@@ -329,13 +312,15 @@ class _DesktopHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'ACCOUNT',
           style: AppTypography.label.copyWith(
-            color: AppColors.primary,
+            color: colors.primary,
             fontSize: 10,
             fontWeight: FontWeight.w700,
             letterSpacing: 2,
@@ -346,14 +331,20 @@ class _DesktopHeader extends StatelessWidget {
 
         Text(
           'Your Profile',
-          style: AppTypography.pageTitle.copyWith(fontSize: 34),
+          style: AppTypography.pageTitle.copyWith(
+            fontSize: 34,
+            color: colors.onSurface,
+          ),
         ),
 
         const SizedBox(height: 7),
 
         Text(
           'View the account currently signed in to ABAKASCAN.',
-          style: AppTypography.bodySecondary.copyWith(height: 1.5),
+          style: AppTypography.bodySecondary.copyWith(
+            height: 1.5,
+            color: colors.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -496,6 +487,8 @@ class _ProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     final size = compact ? 76.0 : 92.0;
 
     return Container(
@@ -503,7 +496,7 @@ class _ProfileAvatar extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.surface,
+        color: colors.surface,
         border: Border.all(color: AppColors.fiberBeige, width: 3),
         boxShadow: [
           BoxShadow(
@@ -517,7 +510,7 @@ class _ProfileAvatar extends StatelessWidget {
       child: Text(
         _initials(name),
         style: AppTypography.sectionTitle.copyWith(
-          color: AppColors.primaryDark,
+          color: colors.primary,
           fontSize: compact ? 23 : 28,
         ),
       ),
@@ -589,17 +582,19 @@ class _InformationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           width: 42,
           height: 42,
-          decoration: const BoxDecoration(
-            color: AppColors.primarySoft,
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, size: 20, color: AppColors.primary),
+          child: Icon(icon, size: 20, color: colors.primary),
         ),
 
         const SizedBox(width: 12),
@@ -608,13 +603,21 @@ class _InformationRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: AppTypography.caption),
+              Text(
+                label,
+                style: AppTypography.caption.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
 
               const SizedBox(height: 4),
 
               SelectableText(
                 value,
-                style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+                style: AppTypography.body.copyWith(
+                  color: colors.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -635,6 +638,8 @@ class _AccountAccessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return _ProfilePanel(
       title: 'Account Access',
       subtitle: 'Current authorization information.',
@@ -643,15 +648,15 @@ class _AccountAccessCard extends StatelessWidget {
           Container(
             width: 68,
             height: 68,
-            decoration: const BoxDecoration(
-              color: AppColors.primarySoft,
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
               shape: BoxShape.circle,
             ),
             child: Icon(
               accountRole == 'Administrator'
                   ? Icons.admin_panel_settings_outlined
                   : Icons.verified_user_outlined,
-              color: AppColors.primaryDark,
+              color: colors.primary,
               size: 31,
             ),
           ),
@@ -662,7 +667,7 @@ class _AccountAccessCard extends StatelessWidget {
             accountRole,
             textAlign: TextAlign.center,
             style: AppTypography.sectionTitle.copyWith(
-              color: AppColors.primaryDark,
+              color: colors.onSurface,
               fontSize: 20,
             ),
           ),
@@ -674,7 +679,10 @@ class _AccountAccessCard extends StatelessWidget {
                 ? 'This account has administrator authorization.'
                 : 'This account is signed in as a standard ABAKASCAN user.',
             textAlign: TextAlign.center,
-            style: AppTypography.bodySecondary.copyWith(height: 1.5),
+            style: AppTypography.bodySecondary.copyWith(
+              height: 1.5,
+              color: colors.onSurfaceVariant,
+            ),
           ),
 
           const SizedBox(height: 18),
@@ -683,90 +691,29 @@ class _AccountAccessCard extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.surfaceMuted,
+              color: colors.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.lock_outline,
-                  size: 18,
-                  color: AppColors.primary,
-                ),
+                Icon(Icons.lock_outline, size: 18, color: colors.primary),
 
                 const SizedBox(width: 8),
 
                 Expanded(
                   child: Text(
                     'Account information is managed through the authenticated system session.',
-                    style: AppTypography.caption.copyWith(height: 1.45),
+                    style: AppTypography.caption.copyWith(
+                      height: 1.45,
+                      color: colors.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ============================================================
-// ACTIONS
-// ============================================================
-
-class _ProfileActions extends StatelessWidget {
-  const _ProfileActions({
-    required this.compact,
-    required this.onSettings,
-    required this.onLogout,
-  });
-
-  final bool compact;
-
-  final VoidCallback onSettings;
-  final VoidCallback onLogout;
-
-  @override
-  Widget build(BuildContext context) {
-    final settingsButton = SizedBox(
-      height: 50,
-      child: OutlinedButton.icon(
-        onPressed: onSettings,
-        icon: const Icon(Icons.settings_outlined),
-        label: const Text('Open Settings'),
-      ),
-    );
-
-    final logoutButton = SizedBox(
-      height: 50,
-      child: FilledButton.icon(
-        style: FilledButton.styleFrom(backgroundColor: AppColors.primaryDark),
-        onPressed: onLogout,
-        icon: const Icon(Icons.logout_rounded),
-        label: const Text('Log Out'),
-      ),
-    );
-
-    if (compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [settingsButton, const SizedBox(height: 10), logoutButton],
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [settingsButton, const SizedBox(width: 10), logoutButton],
       ),
     );
   }
@@ -790,22 +737,36 @@ class _ProfilePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: AppTypography.cardTitle.copyWith(fontSize: 15)),
+          Text(
+            title,
+            style: AppTypography.cardTitle.copyWith(
+              fontSize: 15,
+              color: colors.onSurface,
+            ),
+          ),
 
           const SizedBox(height: 4),
 
-          Text(subtitle, style: AppTypography.caption.copyWith(height: 1.45)),
+          Text(
+            subtitle,
+            style: AppTypography.caption.copyWith(
+              height: 1.45,
+              color: colors.onSurfaceVariant,
+            ),
+          ),
 
           const SizedBox(height: 18),
 
@@ -885,12 +846,6 @@ class _ProfileSidebar extends StatelessWidget {
             onTap: onReports,
           ),
 
-          const _SidebarItem(
-            icon: Icons.person_outline_rounded,
-            label: 'Profile',
-            selected: true,
-          ),
-
           _SidebarItem(
             icon: Icons.settings_outlined,
             label: 'Settings',
@@ -939,30 +894,20 @@ class _ProfileSidebar extends StatelessWidget {
 }
 
 class _SidebarItem extends StatelessWidget {
-  const _SidebarItem({
-    required this.icon,
-    required this.label,
-    this.selected = false,
-    this.onTap,
-  });
+  const _SidebarItem({required this.icon, required this.label, this.onTap});
 
   final IconData icon;
   final String label;
-
-  final bool selected;
-
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final foreground = selected
-        ? Colors.white
-        : Colors.white.withValues(alpha: 0.74);
+    final foreground = Colors.white.withValues(alpha: 0.74);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 7),
       child: Material(
-        color: selected ? AppColors.primary : Colors.transparent,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(9),
         child: InkWell(
           onTap: onTap,
@@ -981,7 +926,7 @@ class _SidebarItem extends StatelessWidget {
                     style: AppTypography.bodySecondary.copyWith(
                       color: foreground,
                       fontSize: 13,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),

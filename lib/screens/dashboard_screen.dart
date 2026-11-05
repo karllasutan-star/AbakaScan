@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../utils/app_navigation.dart';
 import '../app/theme.dart';
 import '../models/models.dart';
 import '../providers/app_providers.dart';
@@ -13,6 +14,12 @@ import 'profile_screen.dart';
 import 'reports_screen.dart';
 import 'samples_screen.dart';
 import 'settings_screen.dart';
+
+extension _DashboardTheme on BuildContext {
+  ColorScheme get colors => Theme.of(this).colorScheme;
+
+  Color get pageBackground => Theme.of(this).scaffoldBackgroundColor;
+}
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -34,6 +41,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     _historyRequested = true;
+
     Future.microtask(_loadHistory);
   }
 
@@ -79,8 +87,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _handleExpiredSession() async {
     context.read<ImageSelectionProvider>().removeImage();
+
     context.read<ClassificationProvider>().reset();
+
     context.read<HistoryProvider>().reset();
+
     context.read<AdminProvider>().reset();
 
     await context.read<AuthProvider>().expireSession();
@@ -93,8 +104,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _openAnalyze() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ClassifyScreen()));
+    await openSection(context, const ClassifyScreen());
 
     if (!mounted) {
       return;
@@ -104,8 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _openHistory() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const HistoryScreen()));
+    await openSection(context, const HistoryScreen());
 
     if (!mounted) {
       return;
@@ -115,34 +124,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _openSamples() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const SamplesScreen()));
+    await openSection(context, const SamplesScreen());
   }
 
   Future<void> _openReports() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ReportsScreen()));
+    await openSection(context, const ReportsScreen());
   }
 
   Future<void> _openProfile() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+    await openSection(context, const ProfileScreen());
   }
 
   Future<void> _openSettings() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    await openSection(context, const SettingsScreen());
   }
 
   Future<void> _openAbout() async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const AboutScreen()));
+    await openSection(context, const AboutScreen());
   }
 
   Future<void> _logout() async {
     context.read<ImageSelectionProvider>().removeImage();
+
     context.read<ClassificationProvider>().reset();
+
     context.read<HistoryProvider>().reset();
+
     context.read<AdminProvider>().reset();
 
     await context.read<AuthProvider>().logout();
@@ -164,7 +171,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         if (desktop) {
           return Scaffold(
-            backgroundColor: AppColors.background,
+            backgroundColor: context.pageBackground,
             body: Row(
               children: [
                 SizedBox(
@@ -188,6 +195,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             _search = value;
                           });
                         },
+                        onHistory: _openHistory,
                         onProfile: _openProfile,
                         onAbout: _openAbout,
                         onLogout: _logout,
@@ -215,16 +223,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onHistory: _openHistory,
           onReports: _openReports,
           onProfile: _openProfile,
+          onSettings: _openSettings,
+          onAbout: _openAbout,
+          onLogout: _logout,
           onRefresh: _refreshHistory,
         );
       },
     );
   }
 }
-
-// ============================================================
-// SIDEBAR
-// ============================================================
 
 class _Sidebar extends StatelessWidget {
   const _Sidebar({
@@ -385,14 +392,11 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-// ============================================================
-// TOP BAR
-// ============================================================
-
 class _TopBar extends StatelessWidget {
   const _TopBar({
     required this.user,
     required this.onSearch,
+    required this.onHistory,
     required this.onProfile,
     required this.onAbout,
     required this.onLogout,
@@ -402,22 +406,32 @@ class _TopBar extends StatelessWidget {
 
   final ValueChanged<String> onSearch;
 
+  final VoidCallback onHistory;
   final VoidCallback onProfile;
   final VoidCallback onAbout;
   final VoidCallback onLogout;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     final rawName = user?.fullName.trim();
 
     final name = rawName == null || rawName.isEmpty ? 'User' : rawName;
 
+    final history = context.watch<HistoryProvider>();
+
+    final recentActivity = [...history.records]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    final recentNotifications = recentActivity.take(5).toList();
+
     return Container(
       height: 72,
       padding: const EdgeInsets.symmetric(horizontal: 22),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(bottom: BorderSide(color: colors.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -430,14 +444,14 @@ class _TopBar extends StatelessWidget {
                 prefixIcon: const Icon(Icons.search_rounded, size: 20),
                 isDense: true,
                 filled: true,
-                fillColor: AppColors.background,
+                fillColor: context.pageBackground,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.border),
+                  borderSide: BorderSide(color: colors.outlineVariant),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.border),
+                  borderSide: BorderSide(color: colors.outlineVariant),
                 ),
               ),
             ),
@@ -445,10 +459,204 @@ class _TopBar extends StatelessWidget {
 
           const Spacer(),
 
-          Icon(
-            Icons.notifications_none_rounded,
-            color: AppColors.textSecondary,
-            size: 21,
+          PopupMenuButton<_NotificationAction>(
+            tooltip: 'Notifications',
+            offset: const Offset(0, 42),
+            position: PopupMenuPosition.under,
+            onSelected: (action) {
+              switch (action) {
+                case _NotificationAction.history:
+                  onHistory();
+                  break;
+              }
+            },
+            itemBuilder: (context) {
+              final items = <PopupMenuEntry<_NotificationAction>>[
+                PopupMenuItem<_NotificationAction>(
+                  enabled: false,
+                  child: SizedBox(
+                    width: 320,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.notifications_outlined,
+                          size: 19,
+                          color: colors.primary,
+                        ),
+
+                        const SizedBox(width: 9),
+
+                        Text(
+                          'Recent Activity',
+                          style: AppTypography.cardTitle.copyWith(
+                            fontSize: 14,
+                            color: colors.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const PopupMenuDivider(),
+              ];
+
+              if (history.isLoading && recentNotifications.isEmpty) {
+                items.add(
+                  const PopupMenuItem<_NotificationAction>(
+                    enabled: false,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 12),
+                          Text('Loading activity...'),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              } else if (recentNotifications.isEmpty) {
+                items.add(
+                  PopupMenuItem<_NotificationAction>(
+                    enabled: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'No recent activity',
+                            style: AppTypography.cardTitle.copyWith(
+                              fontSize: 13,
+                              color: colors.onSurface,
+                            ),
+                          ),
+
+                          const SizedBox(height: 4),
+
+                          Text(
+                            'Your completed fiber analyses will appear here.',
+                            style: AppTypography.caption.copyWith(
+                              height: 1.4,
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              } else {
+                for (final record in recentNotifications) {
+                  items.add(
+                    PopupMenuItem<_NotificationAction>(
+                      enabled: false,
+                      child: SizedBox(
+                        width: 320,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: colors.primaryContainer,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.analytics_outlined,
+                                  size: 18,
+                                  color: colors.primary,
+                                ),
+                              ),
+
+                              const SizedBox(width: 11),
+
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Analysis ${_shortId(record.id)} completed',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTypography.cardTitle.copyWith(
+                                        fontSize: 12,
+                                        color: colors.onSurface,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 3),
+
+                                    Text(
+                                      'Predicted grade: ${record.predictedGrade}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTypography.caption.copyWith(
+                                        color: colors.onSurfaceVariant,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 3),
+
+                                    Text(
+                                      _date(record.createdAt),
+                                      style: AppTypography.caption.copyWith(
+                                        fontSize: 8,
+                                        color: colors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              }
+
+              items.add(const PopupMenuDivider());
+
+              items.add(
+                PopupMenuItem<_NotificationAction>(
+                  value: _NotificationAction.history,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.history_rounded, size: 18),
+
+                      const SizedBox(width: 7),
+
+                      Text(
+                        'View History',
+                        style: AppTypography.body.copyWith(
+                          color: colors.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+
+              return items;
+            },
+            icon: Icon(
+              Icons.notifications_none_rounded,
+              color: colors.onSurfaceVariant,
+              size: 21,
+            ),
           ),
 
           const SizedBox(width: 18),
@@ -459,6 +667,9 @@ class _TopBar extends StatelessWidget {
               switch (action) {
                 case _AccountAction.profile:
                   onProfile();
+                  break;
+
+                case _AccountAction.settings:
                   break;
 
                 case _AccountAction.about:
@@ -475,11 +686,8 @@ class _TopBar extends StatelessWidget {
                 value: _AccountAction.profile,
                 child: Text('Profile'),
               ),
-
               PopupMenuItem(value: _AccountAction.about, child: Text('About')),
-
               PopupMenuDivider(),
-
               PopupMenuItem(
                 value: _AccountAction.logout,
                 child: Text('Log Out'),
@@ -489,11 +697,11 @@ class _TopBar extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 17,
-                  backgroundColor: AppColors.surfaceSage,
+                  backgroundColor: colors.primaryContainer,
                   child: Text(
                     _initials(name),
                     style: AppTypography.caption.copyWith(
-                      color: AppColors.primaryDark,
+                      color: colors.onPrimaryContainer,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -508,7 +716,7 @@ class _TopBar extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.caption.copyWith(
-                      color: AppColors.textPrimary,
+                      color: colors.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -526,11 +734,9 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-enum _AccountAction { profile, about, logout }
+enum _NotificationAction { history }
 
-// ============================================================
-// DESKTOP BODY
-// ============================================================
+enum _AccountAction { profile, settings, about, logout }
 
 class _DesktopBody extends StatelessWidget {
   const _DesktopBody({
@@ -543,7 +749,9 @@ class _DesktopBody extends StatelessWidget {
   final String search;
 
   final Future<void> Function() onAnalyze;
+
   final Future<void> Function() onHistory;
+
   final Future<void> Function() onRefresh;
 
   @override
@@ -649,10 +857,6 @@ class _DesktopBody extends StatelessWidget {
   }
 }
 
-// ============================================================
-// HERO
-// ============================================================
-
 class _Hero extends StatelessWidget {
   const _Hero({required this.onAnalyze});
 
@@ -750,10 +954,6 @@ class _Hero extends StatelessWidget {
   }
 }
 
-// ============================================================
-// WORKFLOW
-// ============================================================
-
 class _Workflow extends StatelessWidget {
   const _Workflow({required this.onAnalyze, required this.onHistory});
 
@@ -762,6 +962,8 @@ class _Workflow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     const items = [
       _WorkflowItemData(
         number: '1',
@@ -830,7 +1032,7 @@ class _Workflow extends StatelessWidget {
                   child: Icon(
                     Icons.arrow_forward_rounded,
                     size: 17,
-                    color: AppColors.textSecondary.withValues(alpha: 0.65),
+                    color: colors.onSurfaceVariant.withValues(alpha: 0.65),
                   ),
                 ),
             ],
@@ -863,8 +1065,10 @@ class _WorkflowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return Material(
-      color: AppColors.surface,
+      color: colors.surface,
       borderRadius: BorderRadius.circular(13),
       child: InkWell(
         onTap: onTap,
@@ -873,18 +1077,18 @@ class _WorkflowCard extends StatelessWidget {
           padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(13),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: colors.outlineVariant),
           ),
           child: Row(
             children: [
               Container(
                 width: 42,
                 height: 42,
-                decoration: const BoxDecoration(
-                  color: AppColors.primarySoft,
+                decoration: BoxDecoration(
+                  color: colors.primaryContainer,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(data.icon, size: 20, color: AppColors.primaryDark),
+                child: Icon(data.icon, size: 20, color: colors.primary),
               ),
 
               const SizedBox(width: 11),
@@ -896,7 +1100,10 @@ class _WorkflowCard extends StatelessWidget {
                   children: [
                     Text(
                       '${data.number}. ${data.title}',
-                      style: AppTypography.cardTitle.copyWith(fontSize: 13),
+                      style: AppTypography.cardTitle.copyWith(
+                        fontSize: 13,
+                        color: colors.onSurface,
+                      ),
                     ),
 
                     const SizedBox(height: 4),
@@ -905,7 +1112,10 @@ class _WorkflowCard extends StatelessWidget {
                       data.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption.copyWith(fontSize: 9),
+                      style: AppTypography.caption.copyWith(
+                        fontSize: 9,
+                        color: colors.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -918,10 +1128,6 @@ class _WorkflowCard extends StatelessWidget {
   }
 }
 
-// ============================================================
-// PANEL BASE
-// ============================================================
-
 class _Panel extends StatelessWidget {
   const _Panel({required this.title, required this.child, this.trailing});
 
@@ -931,14 +1137,16 @@ class _Panel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return Container(
       width: double.infinity,
       constraints: const BoxConstraints(minHeight: 320),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -948,10 +1156,12 @@ class _Panel extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: AppTypography.cardTitle.copyWith(fontSize: 15),
+                  style: AppTypography.cardTitle.copyWith(
+                    fontSize: 15,
+                    color: colors.onSurface,
+                  ),
                 ),
               ),
-
               ?trailing,
             ],
           ),
@@ -965,10 +1175,6 @@ class _Panel extends StatelessWidget {
   }
 }
 
-// ============================================================
-// OVERVIEW
-// ============================================================
-
 class _OverviewPanel extends StatelessWidget {
   const _OverviewPanel({required this.stats});
 
@@ -976,17 +1182,22 @@ class _OverviewPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return _Panel(
       title: 'Overview',
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(7),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: colors.outlineVariant),
         ),
         child: Text(
           'All time',
-          style: AppTypography.caption.copyWith(fontSize: 9),
+          style: AppTypography.caption.copyWith(
+            fontSize: 9,
+            color: colors.onSurfaceVariant,
+          ),
         ),
       ),
       child: Column(
@@ -1035,16 +1246,18 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return Row(
       children: [
         Container(
           width: 42,
           height: 42,
-          decoration: const BoxDecoration(
-            color: AppColors.primarySoft,
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, size: 20, color: AppColors.primary),
+          child: Icon(icon, size: 20, color: colors.primary),
         ),
 
         const SizedBox(width: 12),
@@ -1056,12 +1269,18 @@ class _Metric extends StatelessWidget {
               Text(
                 value,
                 style: AppTypography.cardTitle.copyWith(
-                  color: AppColors.primaryDark,
+                  color: colors.primary,
                   fontSize: 17,
                 ),
               ),
 
-              Text(label, style: AppTypography.caption.copyWith(fontSize: 10)),
+              Text(
+                label,
+                style: AppTypography.caption.copyWith(
+                  fontSize: 10,
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
             ],
           ),
         ),
@@ -1069,10 +1288,6 @@ class _Metric extends StatelessWidget {
     );
   }
 }
-
-// ============================================================
-// RECENT
-// ============================================================
 
 class _RecentPanel extends StatelessWidget {
   const _RecentPanel({
@@ -1082,11 +1297,14 @@ class _RecentPanel extends StatelessWidget {
   });
 
   final List<ClassificationRecordModel> records;
+
   final bool searching;
   final VoidCallback onViewAll;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return _Panel(
       title: searching ? 'Search Results' : 'Recent Analyses',
       trailing: TextButton(
@@ -1101,7 +1319,9 @@ class _RecentPanel extends StatelessWidget {
                   searching
                       ? 'No analyses match your search.'
                       : 'No analyses yet.',
-                  style: AppTypography.bodySecondary,
+                  style: AppTypography.bodySecondary.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
               ),
             )
@@ -1125,6 +1345,8 @@ class _RecentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     final confidence = _confidence(record.confidencePercentage);
 
     return Row(
@@ -1141,14 +1363,20 @@ class _RecentRow extends StatelessWidget {
                 'Analysis ${_shortId(record.id)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypography.cardTitle.copyWith(fontSize: 13),
+                style: AppTypography.cardTitle.copyWith(
+                  fontSize: 13,
+                  color: colors.onSurface,
+                ),
               ),
 
               const SizedBox(height: 3),
 
               Text(
                 _date(record.createdAt),
-                style: AppTypography.caption.copyWith(fontSize: 9),
+                style: AppTypography.caption.copyWith(
+                  fontSize: 9,
+                  color: colors.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -1166,7 +1394,7 @@ class _RecentRow extends StatelessWidget {
             Text(
               '${confidence.toStringAsFixed(0)}%',
               style: AppTypography.caption.copyWith(
-                color: AppColors.primaryDark,
+                color: colors.primary,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1177,18 +1405,17 @@ class _RecentRow extends StatelessWidget {
   }
 }
 
-// ============================================================
-// LATEST RESULT
-// ============================================================
-
 class _LatestResultPanel extends StatelessWidget {
   const _LatestResultPanel({required this.record, required this.onOpenHistory});
 
   final ClassificationRecordModel? record;
+
   final VoidCallback onOpenHistory;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return _Panel(
       title: 'Latest Result',
       trailing: record == null
@@ -1198,12 +1425,14 @@ class _LatestResultPanel extends StatelessWidget {
               child: const Text('View details →'),
             ),
       child: record == null
-          ? const SizedBox(
+          ? SizedBox(
               height: 210,
               child: Center(
                 child: Text(
                   'Your latest result will appear here.',
-                  style: AppTypography.bodySecondary,
+                  style: AppTypography.bodySecondary.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
               ),
             )
@@ -1219,6 +1448,8 @@ class _LatestContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     final confidence = _confidence(record.confidencePercentage);
 
     return Column(
@@ -1236,14 +1467,20 @@ class _LatestContent extends StatelessWidget {
                 children: [
                   Text(
                     'Analysis ${_shortId(record.id)}',
-                    style: AppTypography.cardTitle.copyWith(fontSize: 13),
+                    style: AppTypography.cardTitle.copyWith(
+                      fontSize: 13,
+                      color: colors.onSurface,
+                    ),
                   ),
 
                   const SizedBox(height: 4),
 
                   Text(
                     _date(record.createdAt),
-                    style: AppTypography.caption.copyWith(fontSize: 9),
+                    style: AppTypography.caption.copyWith(
+                      fontSize: 9,
+                      color: colors.onSurfaceVariant,
+                    ),
                   ),
 
                   const SizedBox(height: 14),
@@ -1255,13 +1492,13 @@ class _LatestContent extends StatelessWidget {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.primarySoft,
+                      color: colors.primaryContainer,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       record.predictedGrade,
                       style: AppTypography.sectionTitle.copyWith(
-                        color: AppColors.primaryDark,
+                        color: colors.onPrimaryContainer,
                         fontSize: 20,
                       ),
                     ),
@@ -1271,14 +1508,19 @@ class _LatestContent extends StatelessWidget {
 
                   Row(
                     children: [
-                      const Text('Confidence', style: AppTypography.caption),
+                      Text(
+                        'Confidence',
+                        style: AppTypography.caption.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
 
                       const Spacer(),
 
                       Text(
                         '${confidence.toStringAsFixed(0)}%',
                         style: AppTypography.caption.copyWith(
-                          color: AppColors.primaryDark,
+                          color: colors.primary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -1292,10 +1534,8 @@ class _LatestContent extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: confidence / 100,
                       minHeight: 7,
-                      backgroundColor: AppColors.surfaceSage,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        AppColors.primary,
-                      ),
+                      backgroundColor: colors.surfaceContainerHighest,
+                      valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
                     ),
                   ),
                 ],
@@ -1310,11 +1550,7 @@ class _LatestContent extends StatelessWidget {
 
         Row(
           children: [
-            const Icon(
-              Icons.fact_check_outlined,
-              size: 18,
-              color: AppColors.primary,
-            ),
+            Icon(Icons.fact_check_outlined, size: 18, color: colors.primary),
 
             const SizedBox(width: 9),
 
@@ -1322,7 +1558,7 @@ class _LatestContent extends StatelessWidget {
               child: Text(
                 'Latest saved classification result',
                 style: AppTypography.caption.copyWith(
-                  color: AppColors.textPrimary,
+                  color: colors.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1334,10 +1570,6 @@ class _LatestContent extends StatelessWidget {
   }
 }
 
-// ============================================================
-// MOBILE HOME
-// ============================================================
-
 class _MobileHome extends StatelessWidget {
   const _MobileHome({
     required this.user,
@@ -1345,6 +1577,9 @@ class _MobileHome extends StatelessWidget {
     required this.onHistory,
     required this.onReports,
     required this.onProfile,
+    required this.onSettings,
+    required this.onAbout,
+    required this.onLogout,
     required this.onRefresh,
   });
 
@@ -1354,10 +1589,15 @@ class _MobileHome extends StatelessWidget {
   final Future<void> Function() onHistory;
   final Future<void> Function() onReports;
   final Future<void> Function() onProfile;
+  final Future<void> Function() onSettings;
+  final Future<void> Function() onAbout;
+  final Future<void> Function() onLogout;
   final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     final rawName = user?.fullName.trim();
 
     final name = rawName == null || rawName.isEmpty ? 'User' : rawName;
@@ -1365,7 +1605,7 @@ class _MobileHome extends StatelessWidget {
     final firstName = name.split(' ').first;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: onRefresh,
@@ -1378,15 +1618,113 @@ class _MobileHome extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        _Brand(darkText: true),
+                        const _Brand(darkText: true),
 
-                        Spacer(),
+                        const Spacer(),
 
-                        Icon(
-                          Icons.notifications_none_rounded,
-                          color: AppColors.primaryDark,
+                        IconButton(
+                          tooltip: 'Notifications',
+                          onPressed: onHistory,
+                          icon: Icon(
+                            Icons.notifications_none_rounded,
+                            color: colors.onSurface,
+                          ),
+                        ),
+
+                        const SizedBox(width: 2),
+
+                        PopupMenuButton<_AccountAction>(
+                          tooltip: 'Account',
+                          position: PopupMenuPosition.under,
+                          onSelected: (action) {
+                            switch (action) {
+                              case _AccountAction.profile:
+                                onProfile();
+                                break;
+
+                              case _AccountAction.settings:
+                                onSettings();
+                                break;
+
+                              case _AccountAction.about:
+                                onAbout();
+                                break;
+
+                              case _AccountAction.logout:
+                                onLogout();
+                                break;
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: _AccountAction.profile,
+                              child: Row(
+                                children: const [
+                                  Icon(Icons.person_outline_rounded, size: 19),
+                                  SizedBox(width: 10),
+                                  Text('Profile'),
+                                ],
+                              ),
+                            ),
+
+                            PopupMenuItem(
+                              value: _AccountAction.settings,
+                              child: Row(
+                                children: const [
+                                  Icon(Icons.settings_outlined, size: 19),
+                                  SizedBox(width: 10),
+                                  Text('Settings'),
+                                ],
+                              ),
+                            ),
+
+                            PopupMenuItem(
+                              value: _AccountAction.about,
+                              child: Row(
+                                children: const [
+                                  Icon(Icons.info_outline_rounded, size: 19),
+                                  SizedBox(width: 10),
+                                  Text('About'),
+                                ],
+                              ),
+                            ),
+
+                            const PopupMenuDivider(),
+
+                            PopupMenuItem(
+                              value: _AccountAction.logout,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.logout_rounded,
+                                    size: 19,
+                                    color: colors.error,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Log Out',
+                                    style: TextStyle(
+                                      color: colors.error,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          child: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: colors.primaryContainer,
+                            child: Text(
+                              _initials(name),
+                              style: AppTypography.caption.copyWith(
+                                color: colors.onPrimaryContainer,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -1435,6 +1773,7 @@ class _MobileHome extends StatelessWidget {
           ),
         ),
       ),
+
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
         destinations: const [
@@ -1575,8 +1914,10 @@ class _MobileActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return Material(
-      color: AppColors.surface,
+      color: colors.surface,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -1586,7 +1927,7 @@ class _MobileActionCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: colors.outlineVariant),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1605,14 +1946,20 @@ class _MobileActionCard extends StatelessWidget {
 
               Text(
                 title,
-                style: AppTypography.cardTitle.copyWith(fontSize: 13),
+                style: AppTypography.cardTitle.copyWith(
+                  fontSize: 13,
+                  color: colors.onSurface,
+                ),
               ),
 
               const SizedBox(height: 2),
 
               Text(
                 subtitle,
-                style: AppTypography.caption.copyWith(fontSize: 9),
+                style: AppTypography.caption.copyWith(
+                  fontSize: 9,
+                  color: colors.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -1694,6 +2041,8 @@ class _MobileRecent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     final history = context.watch<HistoryProvider>();
 
     final records = [...history.records]
@@ -1704,8 +2053,13 @@ class _MobileRecent extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Expanded(
-              child: Text('Recent Analyses', style: AppTypography.sectionTitle),
+            Expanded(
+              child: Text(
+                'Recent Analyses',
+                style: AppTypography.sectionTitle.copyWith(
+                  color: colors.onSurface,
+                ),
+              ),
             ),
 
             TextButton(onPressed: onHistory, child: const Text('View all')),
@@ -1719,14 +2073,16 @@ class _MobileRecent extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: colors.surface,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: colors.outlineVariant),
             ),
-            child: const Text(
+            child: Text(
               'Your recent analyses will appear here.',
               textAlign: TextAlign.center,
-              style: AppTypography.bodySecondary,
+              style: AppTypography.bodySecondary.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
             ),
           )
         else
@@ -1747,14 +2103,16 @@ class _MobileRecord extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     final confidence = _confidence(record.confidencePercentage);
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Row(
         children: [
@@ -1768,14 +2126,20 @@ class _MobileRecord extends StatelessWidget {
               children: [
                 Text(
                   'Analysis ${_shortId(record.id)}',
-                  style: AppTypography.cardTitle.copyWith(fontSize: 13),
+                  style: AppTypography.cardTitle.copyWith(
+                    fontSize: 13,
+                    color: colors.onSurface,
+                  ),
                 ),
 
                 const SizedBox(height: 3),
 
                 Text(
                   _date(record.createdAt),
-                  style: AppTypography.caption.copyWith(fontSize: 9),
+                  style: AppTypography.caption.copyWith(
+                    fontSize: 9,
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -1791,7 +2155,7 @@ class _MobileRecord extends StatelessWidget {
               Text(
                 '${confidence.toStringAsFixed(0)}%',
                 style: AppTypography.caption.copyWith(
-                  color: AppColors.primaryDark,
+                  color: colors.primary,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1802,10 +2166,6 @@ class _MobileRecord extends StatelessWidget {
     );
   }
 }
-
-// ============================================================
-// THUMBNAIL
-// ============================================================
 
 class _Thumbnail extends StatelessWidget {
   const _Thumbnail({
@@ -1848,10 +2208,6 @@ class _Thumbnail extends StatelessWidget {
   }
 }
 
-// ============================================================
-// GRADE CHIP
-// ============================================================
-
 class _GradeChip extends StatelessWidget {
   const _GradeChip({required this.grade});
 
@@ -1859,16 +2215,18 @@ class _GradeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.primarySoft,
+        color: colors.primaryContainer,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         grade,
         style: AppTypography.caption.copyWith(
-          color: AppColors.primaryDark,
+          color: colors.onPrimaryContainer,
           fontWeight: FontWeight.w700,
           fontSize: 9,
         ),
@@ -1877,25 +2235,28 @@ class _GradeChip extends StatelessWidget {
   }
 }
 
-// ============================================================
-// LOADING / ERROR
-// ============================================================
-
 class _LoadingState extends StatelessWidget {
   const _LoadingState();
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 80),
+    final colors = context.colors;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 80),
       child: Center(
         child: Column(
           children: [
-            CircularProgressIndicator(strokeWidth: 2.5),
+            const CircularProgressIndicator(strokeWidth: 2.5),
 
-            SizedBox(height: 14),
+            const SizedBox(height: 14),
 
-            Text('Loading dashboard...', style: AppTypography.bodySecondary),
+            Text(
+              'Loading dashboard...',
+              style: AppTypography.bodySecondary.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),
@@ -1911,24 +2272,28 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         children: [
-          const Icon(Icons.error_outline, color: AppColors.error),
+          Icon(Icons.error_outline, color: colors.error),
 
           const SizedBox(height: 10),
 
           Text(
             message,
             textAlign: TextAlign.center,
-            style: AppTypography.bodySecondary,
+            style: AppTypography.bodySecondary.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
           ),
 
           const SizedBox(height: 14),
@@ -1944,10 +2309,6 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-// ============================================================
-// BRAND
-// ============================================================
-
 class _Brand extends StatelessWidget {
   const _Brand({this.darkText = false});
 
@@ -1955,14 +2316,16 @@ class _Brand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = darkText ? AppColors.primaryDark : Colors.white;
+    final colors = context.colors;
+
+    final foreground = darkText ? colors.onSurface : Colors.white;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           Icons.eco_outlined,
-          color: darkText ? AppColors.primary : AppColors.fiberBeige,
+          color: darkText ? colors.primary : AppColors.fiberBeige,
           size: 24,
         ),
 
@@ -1981,10 +2344,6 @@ class _Brand extends StatelessWidget {
     );
   }
 }
-
-// ============================================================
-// STATS
-// ============================================================
 
 class _DashboardStats {
   const _DashboardStats({
@@ -2037,10 +2396,6 @@ class _DashboardStats {
   }
 }
 
-// ============================================================
-// DECORATIVE LINES
-// ============================================================
-
 class _GoldLinePainter extends CustomPainter {
   const _GoldLinePainter();
 
@@ -2075,10 +2430,6 @@ class _GoldLinePainter extends CustomPainter {
     return false;
   }
 }
-
-// ============================================================
-// HELPERS
-// ============================================================
 
 double _confidence(double value) {
   if (value <= 1) {
