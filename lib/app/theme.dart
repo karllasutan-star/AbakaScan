@@ -131,6 +131,51 @@ class AppColors {
 
   static const Color disabledBackground = Color(0xFFE5E7E2);
 }
+// ===============================================================
+// ABAKASCAN DARK COLORS
+// ===============================================================
+
+class AppDarkColors {
+  AppDarkColors._();
+
+  // Brand
+  static const Color primary = Color(0xFF69C47F);
+  static const Color primaryDark = Color(0xFF0F3D2E);
+  static const Color secondary = Color(0xFF91B998);
+
+  static const Color primarySoft = Color(0xFF193726);
+  static const Color sage = Color(0xFF274634);
+
+  // Background and surfaces
+  static const Color background = Color(0xFF08150F);
+  static const Color surface = Color(0xFF0E2117);
+  static const Color surfaceMuted = Color(0xFF142A1E);
+  static const Color surfaceSage = Color(0xFF193426);
+
+  // Agricultural accent
+  static const Color fiberBeige = Color(0xFFD6B67A);
+  static const Color fiberBeigeSoft = Color(0xFF473C28);
+
+  // Text
+  static const Color textPrimary = Color(0xFFF2F6F2);
+  static const Color textSecondary = Color(0xFFB5C2B8);
+  static const Color textOnPrimary = Color(0xFFFFFFFF);
+  static const Color textOnPrimaryMuted = Color(0xFFDCE7DE);
+
+  // Borders
+  static const Color border = Color(0xFF2B4235);
+  static const Color borderStrong = Color(0xFF456051);
+
+  // Feedback
+  static const Color success = Color(0xFF69C47F);
+  static const Color warning = Color(0xFFD6A653);
+  static const Color error = Color(0xFFE17B72);
+  static const Color info = Color(0xFF7EB2C1);
+
+  // Disabled
+  static const Color disabled = Color(0xFF617167);
+  static const Color disabledBackground = Color(0xFF26362D);
+}
 
 /// ===============================================================
 /// SPACING
@@ -331,6 +376,24 @@ class AppTheme {
         onSurface: AppColors.textPrimary,
         error: AppColors.error,
         onError: Colors.white,
+      );
+  static final ColorScheme _darkColorScheme =
+      ColorScheme.fromSeed(
+        seedColor: AppDarkColors.primary,
+        brightness: Brightness.dark,
+      ).copyWith(
+        primary: AppDarkColors.primary,
+        onPrimary: Color(0xFF062311),
+        primaryContainer: AppDarkColors.primarySoft,
+        onPrimaryContainer: AppDarkColors.textPrimary,
+        secondary: AppDarkColors.secondary,
+        onSecondary: Color(0xFF0A2415),
+        secondaryContainer: AppDarkColors.sage,
+        onSecondaryContainer: AppDarkColors.textPrimary,
+        surface: AppDarkColors.surface,
+        onSurface: AppDarkColors.textPrimary,
+        error: AppDarkColors.error,
+        onError: Color(0xFF2B0705),
       );
 
   static final ThemeData lightTheme = ThemeData(
@@ -673,5 +736,321 @@ class AppTheme {
     splashColor: AppColors.primary.withValues(alpha: 0.08),
 
     iconTheme: const IconThemeData(color: AppColors.textPrimary),
+  );
+  static final ThemeData darkTheme = ThemeData(
+    useMaterial3: true,
+
+    brightness: Brightness.dark,
+
+    colorScheme: _darkColorScheme,
+
+    scaffoldBackgroundColor: AppDarkColors.background,
+
+    // -------------------------------------------------------------
+    // TYPOGRAPHY
+    // -------------------------------------------------------------
+    textTheme: TextTheme(
+      displayLarge: AppTypography.displayLarge.copyWith(
+        color: AppDarkColors.textPrimary,
+      ),
+      displayMedium: AppTypography.displayMedium.copyWith(
+        color: AppDarkColors.textPrimary,
+      ),
+      headlineLarge: AppTypography.pageTitle.copyWith(
+        color: AppDarkColors.textPrimary,
+      ),
+      headlineMedium: AppTypography.sectionTitle.copyWith(
+        color: AppDarkColors.textPrimary,
+      ),
+      titleLarge: AppTypography.cardTitle.copyWith(
+        color: AppDarkColors.textPrimary,
+      ),
+      bodyLarge: AppTypography.body.copyWith(color: AppDarkColors.textPrimary),
+      bodyMedium: AppTypography.body.copyWith(color: AppDarkColors.textPrimary),
+      bodySmall: AppTypography.bodySecondary.copyWith(
+        color: AppDarkColors.textSecondary,
+      ),
+      labelLarge: AppTypography.button.copyWith(
+        color: AppDarkColors.textPrimary,
+      ),
+      labelMedium: AppTypography.label.copyWith(
+        color: AppDarkColors.textSecondary,
+      ),
+      labelSmall: AppTypography.caption.copyWith(
+        color: AppDarkColors.textSecondary,
+      ),
+    ),
+
+    // -------------------------------------------------------------
+    // APP BAR
+    // -------------------------------------------------------------
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppDarkColors.background,
+      foregroundColor: AppDarkColors.textPrimary,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: false,
+      surfaceTintColor: Colors.transparent,
+      titleSpacing: AppSpacing.md,
+    ),
+
+    // -------------------------------------------------------------
+    // CARDS
+    // -------------------------------------------------------------
+    cardTheme: CardThemeData(
+      color: AppDarkColors.surface,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.mediumRadius,
+        side: const BorderSide(color: AppDarkColors.border, width: 1),
+      ),
+    ),
+
+    // -------------------------------------------------------------
+    // INPUT FIELDS
+    // -------------------------------------------------------------
+    inputDecorationTheme: InputDecorationThemeData(
+      filled: true,
+      fillColor: AppDarkColors.surface,
+
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 17,
+      ),
+
+      labelStyle: AppTypography.bodySecondary.copyWith(
+        color: AppDarkColors.textSecondary,
+      ),
+
+      floatingLabelStyle: AppTypography.bodySecondary.copyWith(
+        color: AppDarkColors.primary,
+        fontWeight: FontWeight.w600,
+      ),
+
+      hintStyle: AppTypography.bodySecondary.copyWith(
+        color: AppDarkColors.textSecondary.withValues(alpha: 0.78),
+      ),
+
+      helperStyle: AppTypography.caption.copyWith(
+        color: AppDarkColors.textSecondary,
+      ),
+
+      errorStyle: AppTypography.caption.copyWith(color: AppDarkColors.error),
+
+      prefixIconColor: AppDarkColors.textSecondary,
+      suffixIconColor: AppDarkColors.textSecondary,
+
+      enabledBorder: OutlineInputBorder(
+        borderRadius: AppRadius.mediumRadius,
+        borderSide: const BorderSide(color: AppDarkColors.border, width: 1),
+      ),
+
+      focusedBorder: OutlineInputBorder(
+        borderRadius: AppRadius.mediumRadius,
+        borderSide: const BorderSide(color: AppDarkColors.primary, width: 1.7),
+      ),
+
+      errorBorder: OutlineInputBorder(
+        borderRadius: AppRadius.mediumRadius,
+        borderSide: const BorderSide(color: AppDarkColors.error, width: 1),
+      ),
+
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: AppRadius.mediumRadius,
+        borderSide: const BorderSide(color: AppDarkColors.error, width: 1.7),
+      ),
+
+      disabledBorder: OutlineInputBorder(
+        borderRadius: AppRadius.mediumRadius,
+        borderSide: const BorderSide(color: AppDarkColors.disabled, width: 1),
+      ),
+    ),
+
+    // -------------------------------------------------------------
+    // PRIMARY BUTTONS
+    // -------------------------------------------------------------
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        foregroundColor: const Color(0xFF062311),
+        backgroundColor: AppDarkColors.primary,
+        disabledForegroundColor: AppDarkColors.textSecondary,
+        disabledBackgroundColor: AppDarkColors.disabledBackground,
+        elevation: 0,
+        minimumSize: const Size(48, 52),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        textStyle: AppTypography.button,
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.mediumRadius),
+      ),
+    ),
+
+    // -------------------------------------------------------------
+    // SECONDARY BUTTONS
+    // -------------------------------------------------------------
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppDarkColors.primary,
+        elevation: 0,
+        minimumSize: const Size(48, 52),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        textStyle: AppTypography.button,
+        side: const BorderSide(color: AppDarkColors.borderStrong, width: 1),
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.mediumRadius),
+      ),
+    ),
+
+    // -------------------------------------------------------------
+    // TEXT / ICON BUTTONS
+    // -------------------------------------------------------------
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: AppDarkColors.primary,
+        textStyle: AppTypography.button,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.sm,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.smallRadius),
+      ),
+    ),
+
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(foregroundColor: AppDarkColors.textPrimary),
+    ),
+
+    // -------------------------------------------------------------
+    // PROGRESS
+    // -------------------------------------------------------------
+    progressIndicatorTheme: const ProgressIndicatorThemeData(
+      color: AppDarkColors.primary,
+      linearTrackColor: AppDarkColors.sage,
+      circularTrackColor: AppDarkColors.sage,
+    ),
+
+    // -------------------------------------------------------------
+    // DIVIDERS
+    // -------------------------------------------------------------
+    dividerTheme: const DividerThemeData(
+      color: AppDarkColors.border,
+      thickness: 1,
+      space: 1,
+    ),
+
+    // -------------------------------------------------------------
+    // DIALOGS
+    // -------------------------------------------------------------
+    dialogTheme: DialogThemeData(
+      backgroundColor: AppDarkColors.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.largeRadius),
+      titleTextStyle: AppTypography.cardTitle.copyWith(
+        color: AppDarkColors.textPrimary,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+      ),
+      contentTextStyle: AppTypography.body.copyWith(
+        color: AppDarkColors.textPrimary,
+      ),
+    ),
+
+    // -------------------------------------------------------------
+    // BOTTOM SHEETS
+    // -------------------------------------------------------------
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: AppDarkColors.surface,
+      surfaceTintColor: Colors.transparent,
+      showDragHandle: true,
+    ),
+
+    // -------------------------------------------------------------
+    // NAVIGATION
+    // -------------------------------------------------------------
+    navigationRailTheme: const NavigationRailThemeData(
+      backgroundColor: AppDarkColors.surface,
+      indicatorColor: AppDarkColors.primarySoft,
+      selectedIconTheme: IconThemeData(color: AppDarkColors.primary),
+      unselectedIconTheme: IconThemeData(color: AppDarkColors.textSecondary),
+      selectedLabelTextStyle: TextStyle(
+        color: AppDarkColors.primary,
+        fontWeight: FontWeight.w700,
+      ),
+      unselectedLabelTextStyle: TextStyle(color: AppDarkColors.textSecondary),
+    ),
+
+    navigationBarTheme: const NavigationBarThemeData(
+      backgroundColor: AppDarkColors.surface,
+      indicatorColor: AppDarkColors.primarySoft,
+      elevation: 0,
+      height: 70,
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+    ),
+
+    drawerTheme: const DrawerThemeData(
+      backgroundColor: AppDarkColors.surface,
+      surfaceTintColor: Colors.transparent,
+    ),
+
+    // -------------------------------------------------------------
+    // TOOLTIP
+    // -------------------------------------------------------------
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: AppDarkColors.surfaceMuted,
+        borderRadius: AppRadius.smallRadius,
+      ),
+      textStyle: AppTypography.caption.copyWith(
+        color: AppDarkColors.textPrimary,
+      ),
+    ),
+
+    // -------------------------------------------------------------
+    // SNACKBARS
+    // -------------------------------------------------------------
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: AppDarkColors.surfaceMuted,
+      contentTextStyle: AppTypography.bodySecondary.copyWith(
+        color: AppDarkColors.textPrimary,
+      ),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.mediumRadius),
+    ),
+
+    // -------------------------------------------------------------
+    // POPUP MENUS
+    // -------------------------------------------------------------
+    popupMenuTheme: PopupMenuThemeData(
+      color: AppDarkColors.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 6,
+      textStyle: AppTypography.bodySecondary.copyWith(
+        color: AppDarkColors.textPrimary,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.mediumRadius),
+    ),
+
+    // -------------------------------------------------------------
+    // GENERAL
+    // -------------------------------------------------------------
+    dividerColor: AppDarkColors.border,
+
+    disabledColor: AppDarkColors.disabled,
+
+    focusColor: AppDarkColors.primary,
+
+    hoverColor: AppDarkColors.primary.withValues(alpha: 0.08),
+
+    highlightColor: AppDarkColors.primary.withValues(alpha: 0.06),
+
+    splashColor: AppDarkColors.primary.withValues(alpha: 0.10),
+
+    iconTheme: const IconThemeData(color: AppDarkColors.textPrimary),
   );
 }

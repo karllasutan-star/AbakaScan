@@ -66,6 +66,9 @@ class _AbakaScanAppState extends State<AbakaScanApp> {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider<AppearanceProvider>(
+          create: (_) => AppearanceProvider(),
+        ),
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider(_authService),
         ),
@@ -86,13 +89,21 @@ class _AbakaScanAppState extends State<AbakaScanApp> {
           create: (_) => AdminProvider(_adminService),
         ),
       ],
-      child: MaterialApp(
-        title: 'ABAKASCAN',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        home: const _AuthGate(),
-        onGenerateRoute: _generateRoute,
-        onUnknownRoute: _unknownRoute,
+      child: Consumer<AppearanceProvider>(
+        builder: (context, appearanceProvider, _) {
+          return MaterialApp(
+            title: 'ABAKASCAN',
+            debugShowCheckedModeBanner: false,
+
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: appearanceProvider.themeMode,
+
+            home: const _AuthGate(),
+            onGenerateRoute: _generateRoute,
+            onUnknownRoute: _unknownRoute,
+          );
+        },
       ),
     );
   }

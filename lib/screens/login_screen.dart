@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../app/theme.dart';
 import '../models/models.dart';
 import '../providers/app_providers.dart';
+import 'verify_email_screen.dart';
+import 'reset_password_screen.dart';
 
 enum _AuthMode { login, register, forgotPassword }
 
@@ -83,6 +85,10 @@ class _LoginScreenState extends State<LoginScreen> {
     authProvider.clearRegisterError();
     authProvider.clearRegistrationMessage();
 
+    authProvider.clearPasswordResetFeedback(
+      clearEmail: mode != _AuthMode.forgotPassword,
+    );
+
     setState(() {
       _authMode = mode;
     });
@@ -125,6 +131,49 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _submitForgotPassword() async {
+    FocusScope.of(context).unfocus();
+
+    if (!(_forgotPasswordFormKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    final authProvider = context.read<AuthProvider>();
+
+    final resetEmail = _forgotPasswordEmailController.text.trim();
+
+    final success = await authProvider.forgotPassword(email: resetEmail);
+
+    if (!mounted || !success) {
+      return;
+    }
+
+    final resetCompleted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
+    );
+
+    if (!mounted || resetCompleted != true) {
+      return;
+    }
+
+    _loginEmailController.text = resetEmail;
+    _forgotPasswordEmailController.clear();
+
+    setState(() {
+      _authMode = _AuthMode.login;
+    });
+
+    authProvider.clearPasswordResetFeedback(clearEmail: true);
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Password reset successfully. You can now log in.'),
+        ),
+      );
+  }
+
   Future<void> _submitRegister() async {
     FocusScope.of(context).unfocus();
 
@@ -140,9 +189,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final authProvider = context.read<AuthProvider>();
 
+    final registrationEmail = _registerEmailController.text.trim();
+
     final success = await authProvider.register(
       fullName: _fullNameController.text.trim(),
-      email: _registerEmailController.text.trim(),
+      email: registrationEmail,
       password: _registerPasswordController.text,
       stakeholderRole: stakeholderRole,
       customRole: stakeholderRole == StakeholderRole.others
@@ -158,6 +209,20 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    final verified = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const VerifyEmailScreen()));
+
+    if (!mounted) {
+      return;
+    }
+
+    if (verified != true) {
+      return;
+    }
+
+    _loginEmailController.text = registrationEmail;
+
     _registerFormKey.currentState?.reset();
 
     _fullNameController.clear();
@@ -171,23 +236,14 @@ class _LoginScreenState extends State<LoginScreen> {
       _authMode = _AuthMode.login;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Registration successful. Please log in.')),
-    );
-  }
-
-  void _submitForgotPassword() {
-    FocusScope.of(context).unfocus();
-
-    if (!(_forgotPasswordFormKey.currentState?.validate() ?? false)) {
-      return;
-    }
+    authProvider.clearRegisterError();
+    authProvider.clearRegistrationMessage();
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(
-          content: Text('Password recovery is awaiting backend integration.'),
+          content: Text('Email verified successfully. You can now log in.'),
         ),
       );
   }
@@ -219,8 +275,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final desktop = constraints.maxWidth >= AppBreakpoints.desktop;
@@ -360,15 +418,23 @@ class _DesktopAuthLayout extends StatelessWidget {
   final GlobalKey<FormState> forgotPasswordFormKey;
 
   final TextEditingController loginEmailController;
+
   final TextEditingController loginPasswordController;
+
   final TextEditingController fullNameController;
+
   final TextEditingController registerEmailController;
+
   final TextEditingController registerPasswordController;
+
   final TextEditingController confirmPasswordController;
+
   final TextEditingController otherRoleController;
+
   final TextEditingController forgotPasswordEmailController;
 
   final String? selectedStakeholderRole;
+
   final List<String> stakeholderRoles;
 
   final bool obscureLoginPassword;
@@ -384,11 +450,15 @@ class _DesktopAuthLayout extends StatelessWidget {
   final ValueChanged<String?> onRoleChanged;
 
   final VoidCallback onToggleLoginPassword;
+
   final VoidCallback onToggleRegisterPassword;
+
   final VoidCallback onToggleConfirmPassword;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Row(
       children: [
         const Expanded(flex: 11, child: _DesktopHeroPanel()),
@@ -396,7 +466,7 @@ class _DesktopAuthLayout extends StatelessWidget {
         Expanded(
           flex: 10,
           child: Container(
-            color: AppColors.background,
+            color: theme.scaffoldBackgroundColor,
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 54, vertical: 44),
               child: Center(
@@ -482,7 +552,7 @@ class _DesktopHeroPanel extends StatelessWidget {
                     const TextSpan(text: 'See the quality\nin every '),
                     TextSpan(
                       text: 'fiber.',
-                      style: TextStyle(color: AppColors.fiberBeige),
+                      style: const TextStyle(color: AppColors.fiberBeige),
                     ),
                   ],
                 ),
@@ -583,15 +653,23 @@ class _MobileAuthLayout extends StatelessWidget {
   final GlobalKey<FormState> forgotPasswordFormKey;
 
   final TextEditingController loginEmailController;
+
   final TextEditingController loginPasswordController;
+
   final TextEditingController fullNameController;
+
   final TextEditingController registerEmailController;
+
   final TextEditingController registerPasswordController;
+
   final TextEditingController confirmPasswordController;
+
   final TextEditingController otherRoleController;
+
   final TextEditingController forgotPasswordEmailController;
 
   final String? selectedStakeholderRole;
+
   final List<String> stakeholderRoles;
 
   final bool obscureLoginPassword;
@@ -607,7 +685,9 @@ class _MobileAuthLayout extends StatelessWidget {
   final ValueChanged<String?> onRoleChanged;
 
   final VoidCallback onToggleLoginPassword;
+
   final VoidCallback onToggleRegisterPassword;
+
   final VoidCallback onToggleConfirmPassword;
 
   @override
@@ -712,7 +792,7 @@ class _MobileHero extends StatelessWidget {
                       const TextSpan(text: 'See the quality\nin every '),
                       TextSpan(
                         text: 'fiber.',
-                        style: TextStyle(color: AppColors.fiberBeige),
+                        style: const TextStyle(color: AppColors.fiberBeige),
                       ),
                     ],
                   ),
@@ -786,18 +866,27 @@ class _AuthCard extends StatelessWidget {
 
   final GlobalKey<FormState> loginFormKey;
   final GlobalKey<FormState> registerFormKey;
+
   final GlobalKey<FormState> forgotPasswordFormKey;
 
   final TextEditingController loginEmailController;
+
   final TextEditingController loginPasswordController;
+
   final TextEditingController fullNameController;
+
   final TextEditingController registerEmailController;
+
   final TextEditingController registerPasswordController;
+
   final TextEditingController confirmPasswordController;
+
   final TextEditingController otherRoleController;
+
   final TextEditingController forgotPasswordEmailController;
 
   final String? selectedStakeholderRole;
+
   final List<String> stakeholderRoles;
 
   final bool obscureLoginPassword;
@@ -813,23 +902,30 @@ class _AuthCard extends StatelessWidget {
   final ValueChanged<String?> onRoleChanged;
 
   final VoidCallback onToggleLoginPassword;
+
   final VoidCallback onToggleRegisterPassword;
+
   final VoidCallback onToggleConfirmPassword;
 
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(compact ? 20 : 32),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(compact ? 28 : 24),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
+            color: Colors.black.withValues(
+              alpha: theme.brightness == Brightness.dark ? 0.24 : 0.10,
+            ),
             blurRadius: 32,
             offset: const Offset(0, 14),
           ),
@@ -919,16 +1015,19 @@ class _AuthTabs extends StatelessWidget {
   const _AuthTabs({required this.authMode, required this.onModeChanged});
 
   final _AuthMode authMode;
+
   final ValueChanged<_AuthMode> onModeChanged;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       height: 48,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
+        color: colors.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(13),
       ),
       child: Row(
@@ -942,7 +1041,6 @@ class _AuthTabs extends StatelessWidget {
               },
             ),
           ),
-
           Expanded(
             child: _AuthTabButton(
               text: 'Register',
@@ -971,6 +1069,8 @@ class _AuthTabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Material(
       color: selected ? AppColors.primaryDark : Colors.transparent,
       borderRadius: BorderRadius.circular(10),
@@ -982,7 +1082,7 @@ class _AuthTabButton extends StatelessWidget {
             text,
             textAlign: TextAlign.center,
             style: AppTypography.body.copyWith(
-              color: selected ? Colors.white : AppColors.textPrimary,
+              color: selected ? Colors.white : colors.onSurface,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
             ),
           ),
@@ -1012,18 +1112,23 @@ class _LoginForm extends StatelessWidget {
   final GlobalKey<FormState> formKey;
 
   final TextEditingController emailController;
+
   final TextEditingController passwordController;
 
   final bool obscurePassword;
   final bool compact;
 
   final VoidCallback onTogglePassword;
+
   final VoidCallback onLogin;
+
   final VoidCallback onForgotPassword;
 
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+
+    final colors = Theme.of(context).colorScheme;
 
     return Form(
       key: formKey,
@@ -1034,29 +1139,32 @@ class _LoginForm extends StatelessWidget {
               'Welcome back',
               textAlign: TextAlign.center,
               style: AppTypography.pageTitle.copyWith(
+                color: colors.onSurface,
                 fontSize: compact ? 29 : 34,
               ),
             ),
 
             const SizedBox(height: 8),
 
-            const Text(
+            Text(
               'Log in to continue to your ABAKASCAN workspace.',
               textAlign: TextAlign.center,
-              style: AppTypography.bodySecondary,
+              style: AppTypography.bodySecondary.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
             ),
 
             const SizedBox(height: 28),
 
             TextFormField(
               controller: emailController,
-              enabled: !authProvider.loginLoading,
               textInputAction: TextInputAction.next,
               autofillHints: const [
                 AutofillHints.username,
                 AutofillHints.email,
               ],
               decoration: _authDecoration(
+                context,
                 hint: 'Email or Username',
                 prefix: Icons.mail_outline_rounded,
               ),
@@ -1077,7 +1185,13 @@ class _LoginForm extends StatelessWidget {
               obscureText: obscurePassword,
               textInputAction: TextInputAction.done,
               autofillHints: const [AutofillHints.password],
+              onFieldSubmitted: (_) {
+                if (!authProvider.loginLoading && !authProvider.loginLocked) {
+                  onLogin();
+                }
+              },
               decoration: _authDecoration(
+                context,
                 hint: 'Password',
                 prefix: Icons.lock_outline,
                 suffix: IconButton(
@@ -1108,8 +1222,20 @@ class _LoginForm extends StatelessWidget {
               ),
             ),
 
-            if (authProvider.loginError != null) ...[
+            if (authProvider.loginLocked) ...[
               const SizedBox(height: 8),
+
+              _MessageBox(
+                text:
+                    'Account temporarily locked after 5 failed login attempts. '
+                    'Please try again in '
+                    '${authProvider.loginLockSecondsRemaining} '
+                    '${authProvider.loginLockSecondsRemaining == 1 ? 'second' : 'seconds'}.',
+                error: true,
+              ),
+            ] else if (authProvider.loginError != null) ...[
+              const SizedBox(height: 8),
+
               _MessageBox(text: authProvider.loginError!, error: true),
             ],
 
@@ -1121,9 +1247,13 @@ class _LoginForm extends StatelessWidget {
             const SizedBox(height: 16),
 
             _AuthButton(
-              label: 'Log In',
+              label: authProvider.loginLocked
+                  ? 'Locked (${authProvider.loginLockSecondsRemaining}s)'
+                  : 'Log In',
               loading: authProvider.loginLoading,
-              onPressed: authProvider.loginLoading ? null : onLogin,
+              onPressed: authProvider.loginLoading || authProvider.loginLocked
+                  ? null
+                  : onLogin,
             ),
           ],
         ),
@@ -1159,27 +1289,37 @@ class _RegisterForm extends StatelessWidget {
   final GlobalKey<FormState> formKey;
 
   final TextEditingController fullNameController;
+
   final TextEditingController emailController;
+
   final TextEditingController passwordController;
+
   final TextEditingController confirmPasswordController;
+
   final TextEditingController otherRoleController;
 
   final String? selectedStakeholderRole;
+
   final List<String> stakeholderRoles;
 
   final bool obscurePassword;
   final bool obscureConfirmPassword;
+
   final bool compact;
 
   final ValueChanged<String?> onRoleChanged;
 
   final VoidCallback onTogglePassword;
+
   final VoidCallback onToggleConfirmPassword;
+
   final VoidCallback onRegister;
 
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+
+    final colors = Theme.of(context).colorScheme;
 
     return Form(
       key: formKey,
@@ -1188,16 +1328,19 @@ class _RegisterForm extends StatelessWidget {
           Text(
             'Create account',
             style: AppTypography.pageTitle.copyWith(
+              color: colors.onSurface,
               fontSize: compact ? 28 : 33,
             ),
           ),
 
           const SizedBox(height: 8),
 
-          const Text(
+          Text(
             'Create your ABAKASCAN workspace.',
             textAlign: TextAlign.center,
-            style: AppTypography.bodySecondary,
+            style: AppTypography.bodySecondary.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
           ),
 
           const SizedBox(height: 25),
@@ -1207,7 +1350,8 @@ class _RegisterForm extends StatelessWidget {
             enabled: !authProvider.registerLoading,
             textInputAction: TextInputAction.next,
             decoration: _authDecoration(
-              hint: 'Full Name',
+              context,
+              hint: 'Full Name(e.g., Miles Morales)',
               prefix: Icons.person_outline,
             ),
             validator: (value) {
@@ -1227,6 +1371,7 @@ class _RegisterForm extends StatelessWidget {
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             decoration: _authDecoration(
+              context,
               hint: 'Email Address',
               prefix: Icons.mail_outline,
             ),
@@ -1251,6 +1396,7 @@ class _RegisterForm extends StatelessWidget {
             initialValue: selectedStakeholderRole,
             isExpanded: true,
             decoration: _authDecoration(
+              context,
               hint: 'Select your role',
               prefix: Icons.badge_outlined,
             ),
@@ -1277,6 +1423,7 @@ class _RegisterForm extends StatelessWidget {
               controller: otherRoleController,
               enabled: !authProvider.registerLoading,
               decoration: _authDecoration(
+                context,
                 hint: 'Specify your role',
                 prefix: Icons.edit_outlined,
               ),
@@ -1294,9 +1441,11 @@ class _RegisterForm extends StatelessWidget {
 
           TextFormField(
             controller: passwordController,
-            enabled: !authProvider.registerLoading,
             obscureText: obscurePassword,
+            textInputAction: TextInputAction.next,
+            autofillHints: const [AutofillHints.newPassword],
             decoration: _authDecoration(
+              context,
               hint: 'Password',
               prefix: Icons.lock_outline,
               suffix: IconButton(
@@ -1321,6 +1470,15 @@ class _RegisterForm extends StatelessWidget {
             },
           ),
 
+          const SizedBox(height: 10),
+
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: passwordController,
+            builder: (context, value, child) {
+              return _PasswordStrengthIndicator(password: value.text);
+            },
+          ),
+
           const SizedBox(height: 13),
 
           TextFormField(
@@ -1328,6 +1486,7 @@ class _RegisterForm extends StatelessWidget {
             enabled: !authProvider.registerLoading,
             obscureText: obscureConfirmPassword,
             decoration: _authDecoration(
+              context,
               hint: 'Confirm Password',
               prefix: Icons.lock_outline,
               suffix: IconButton(
@@ -1371,6 +1530,210 @@ class _RegisterForm extends StatelessWidget {
   }
 }
 
+enum _PasswordStrength { weak, fair, good, strong }
+
+class _PasswordStrengthIndicator extends StatelessWidget {
+  const _PasswordStrengthIndicator({required this.password});
+
+  final String password;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    if (password.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final strength = _calculatePasswordStrength(password);
+
+    final score = _passwordStrengthScore(strength);
+
+    final Color strengthColor;
+    final String strengthLabel;
+
+    switch (strength) {
+      case _PasswordStrength.weak:
+        strengthColor = colors.error;
+        strengthLabel = 'Weak';
+        break;
+
+      case _PasswordStrength.fair:
+        strengthColor = Colors.orange;
+        strengthLabel = 'Fair';
+        break;
+
+      case _PasswordStrength.good:
+        strengthColor = colors.secondary;
+        strengthLabel = 'Good';
+        break;
+
+      case _PasswordStrength.strong:
+        strengthColor = colors.primary;
+        strengthLabel = 'Strong';
+        break;
+    }
+
+    final hasMinimumLength = password.length >= 8;
+
+    final hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+
+    final hasLowercase = RegExp(r'[a-z]').hasMatch(password);
+
+    final hasNumber = RegExp(r'[0-9]').hasMatch(password);
+
+    final hasSpecialCharacter = RegExp(r'[!@#$%^&*(),.?":{}|<>_+=-]')
+        .hasMatch(password);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Row(
+                children: List.generate(4, (index) {
+                  final active = index < score;
+
+                  return Expanded(
+                    child: Container(
+                      height: 5,
+                      margin: EdgeInsets.only(right: index == 3 ? 0 : 6),
+                      decoration: BoxDecoration(
+                        color: active ? strengthColor : colors.outlineVariant,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            Text(
+              strengthLabel,
+              style: AppTypography.caption.copyWith(
+                color: strengthColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        _PasswordRequirement(
+          met: hasMinimumLength,
+          text: 'At least 8 characters',
+        ),
+
+        const SizedBox(height: 4),
+
+        _PasswordRequirement(
+          met: hasUppercase && hasLowercase,
+          text: 'Uppercase and lowercase letters',
+        ),
+
+        const SizedBox(height: 4),
+
+        _PasswordRequirement(met: hasNumber, text: 'At least one number'),
+
+        const SizedBox(height: 4),
+
+        _PasswordRequirement(
+          met: hasSpecialCharacter,
+          text: 'At least one special character',
+        ),
+      ],
+    );
+  }
+}
+
+class _PasswordRequirement extends StatelessWidget {
+  const _PasswordRequirement({required this.met, required this.text});
+
+  final bool met;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Row(
+      children: [
+        Icon(
+          met
+              ? Icons.check_circle_rounded
+              : Icons.radio_button_unchecked_rounded,
+          size: 15,
+          color: met ? colors.primary : colors.onSurfaceVariant,
+        ),
+
+        const SizedBox(width: 7),
+
+        Text(
+          text,
+          style: AppTypography.caption.copyWith(
+            color: met ? colors.onSurface : colors.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+_PasswordStrength _calculatePasswordStrength(String password) {
+  var score = 0;
+
+  if (password.length >= 8) {
+    score++;
+  }
+
+  if (RegExp(r'[A-Z]').hasMatch(password) &&
+      RegExp(r'[a-z]').hasMatch(password)) {
+    score++;
+  }
+
+  if (RegExp(r'[0-9]').hasMatch(password)) {
+    score++;
+  }
+
+  if (RegExp(r'[!@#$%^&*(),.?":{}|<>_+=-]').hasMatch(password)) {
+    score++;
+  }
+
+  switch (score) {
+    case 4:
+      return _PasswordStrength.strong;
+
+    case 3:
+      return _PasswordStrength.good;
+
+    case 2:
+      return _PasswordStrength.fair;
+
+    default:
+      return _PasswordStrength.weak;
+  }
+}
+
+int _passwordStrengthScore(_PasswordStrength strength) {
+  switch (strength) {
+    case _PasswordStrength.weak:
+      return 1;
+
+    case _PasswordStrength.fair:
+      return 2;
+
+    case _PasswordStrength.good:
+      return 3;
+
+    case _PasswordStrength.strong:
+      return 4;
+  }
+}
+
 // ============================================================
 // FORGOT PASSWORD
 // ============================================================
@@ -1385,6 +1748,7 @@ class _ForgotPasswordForm extends StatelessWidget {
   });
 
   final GlobalKey<FormState> formKey;
+
   final TextEditingController emailController;
 
   final bool compact;
@@ -1393,6 +1757,10 @@ class _ForgotPasswordForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+
+    final colors = Theme.of(context).colorScheme;
+
     return Form(
       key: formKey,
       child: Column(
@@ -1400,13 +1768,13 @@ class _ForgotPasswordForm extends StatelessWidget {
           Container(
             width: 62,
             height: 62,
-            decoration: const BoxDecoration(
-              color: AppColors.primarySoft,
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.lock_reset_outlined,
-              color: AppColors.primaryDark,
+              color: colors.primary,
               size: 30,
             ),
           ),
@@ -1416,24 +1784,29 @@ class _ForgotPasswordForm extends StatelessWidget {
           Text(
             'Forgot password?',
             style: AppTypography.pageTitle.copyWith(
+              color: colors.onSurface,
               fontSize: compact ? 27 : 32,
             ),
           ),
 
           const SizedBox(height: 8),
 
-          const Text(
+          Text(
             'Enter the email address associated with your ABAKASCAN account.',
             textAlign: TextAlign.center,
-            style: AppTypography.bodySecondary,
+            style: AppTypography.bodySecondary.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
           ),
 
           const SizedBox(height: 26),
 
           TextFormField(
             controller: emailController,
+            enabled: !authProvider.forgotPasswordLoading,
             keyboardType: TextInputType.emailAddress,
             decoration: _authDecoration(
+              context,
               hint: 'Email Address',
               prefix: Icons.mail_outline,
             ),
@@ -1454,10 +1827,18 @@ class _ForgotPasswordForm extends StatelessWidget {
 
           const SizedBox(height: 20),
 
+          if (authProvider.passwordResetError != null) ...[
+            const SizedBox(height: 14),
+
+            _MessageBox(text: authProvider.passwordResetError!, error: true),
+          ],
+
+          const SizedBox(height: 20),
+
           _AuthButton(
-            label: 'Send Recovery Link',
-            loading: false,
-            onPressed: onSubmit,
+            label: 'Send Reset Code',
+            loading: authProvider.forgotPasswordLoading,
+            onPressed: authProvider.forgotPasswordLoading ? null : onSubmit,
           ),
         ],
       ),
@@ -1507,9 +1888,7 @@ class _AuthButton extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(label),
-
                   const SizedBox(width: 12),
-
                   const Icon(Icons.arrow_forward_rounded, size: 20),
                 ],
               ),
@@ -1523,36 +1902,45 @@ class _SecurityNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           width: 38,
           height: 38,
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
+          decoration: BoxDecoration(
+            color: colors.primary,
             shape: BoxShape.circle,
           ),
-          child: const Icon(
+          child: Icon(
             Icons.verified_user_outlined,
-            color: Colors.white,
+            color: colors.onPrimary,
             size: 19,
           ),
         ),
 
         const SizedBox(width: 12),
 
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Secure account access', style: AppTypography.cardTitle),
+              Text(
+                'Secure account access',
+                style: AppTypography.cardTitle.copyWith(
+                  color: colors.onSurface,
+                ),
+              ),
 
-              SizedBox(height: 3),
+              const SizedBox(height: 3),
 
               Text(
                 'Sign in to access your ABAKASCAN workspace and saved analyses.',
-                style: AppTypography.caption,
+                style: AppTypography.caption.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -1570,7 +1958,9 @@ class _MessageBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = error ? AppColors.error : AppColors.success;
+    final colors = Theme.of(context).colorScheme;
+
+    final color = error ? colors.error : colors.primary;
 
     return Container(
       width: double.infinity,
@@ -1655,14 +2045,17 @@ class _Brand extends StatelessWidget {
 // INPUT STYLE
 // ============================================================
 
-InputDecoration _authDecoration({
+InputDecoration _authDecoration(
+  BuildContext context, {
   required String hint,
   required IconData prefix,
   Widget? suffix,
 }) {
+  final colors = Theme.of(context).colorScheme;
+
   final border = OutlineInputBorder(
     borderRadius: BorderRadius.circular(11),
-    borderSide: const BorderSide(color: AppColors.border),
+    borderSide: BorderSide(color: colors.outlineVariant),
   );
 
   return InputDecoration(
@@ -1670,21 +2063,21 @@ InputDecoration _authDecoration({
     prefixIcon: Icon(prefix),
     suffixIcon: suffix,
     filled: true,
-    fillColor: AppColors.surface,
+    fillColor: colors.surface,
     contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 17),
     border: border,
     enabledBorder: border,
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(11),
-      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+      borderSide: BorderSide(color: colors.primary, width: 1.5),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(11),
-      borderSide: const BorderSide(color: AppColors.error),
+      borderSide: BorderSide(color: colors.error),
     ),
     focusedErrorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(11),
-      borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+      borderSide: BorderSide(color: colors.error, width: 1.5),
     ),
   );
 }

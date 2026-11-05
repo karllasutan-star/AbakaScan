@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -15,6 +18,62 @@ enum SelectedImageSource { webUpload, mobileCamera, mobileGallery }
 enum ClassificationStatus { initial, analyzing, success, failure }
 
 enum HistoryStatus { initial, loading, success, failure }
+
+// ============================================================
+// APPEARANCE
+// ============================================================
+
+enum AppAppearance { system, light, dark }
+
+extension AppAppearanceExtension on AppAppearance {
+  String get displayName {
+    switch (this) {
+      case AppAppearance.system:
+        return 'System';
+
+      case AppAppearance.light:
+        return 'Light';
+
+      case AppAppearance.dark:
+        return 'Dark';
+    }
+  }
+}
+
+class AppearanceProvider extends ChangeNotifier {
+  AppAppearance _appearance = AppAppearance.light;
+
+  AppAppearance get appearance => _appearance;
+
+  bool get usesSystemTheme => _appearance == AppAppearance.system;
+
+  bool get usesLightTheme => _appearance == AppAppearance.light;
+
+  bool get usesDarkTheme => _appearance == AppAppearance.dark;
+
+  ThemeMode get themeMode {
+    switch (_appearance) {
+      case AppAppearance.system:
+        return ThemeMode.system;
+
+      case AppAppearance.light:
+        return ThemeMode.light;
+
+      case AppAppearance.dark:
+        return ThemeMode.dark;
+    }
+  }
+
+  void setAppearance(AppAppearance value) {
+    if (_appearance == value) {
+      return;
+    }
+
+    _appearance = value;
+
+    notifyListeners();
+  }
+}
 
 // ============================================================
 // AUTH PROVIDER
@@ -37,11 +96,24 @@ class AuthProvider extends ChangeNotifier {
   bool _sessionInitializing = false;
   bool _loginLoading = false;
   bool _registerLoading = false;
+  bool _verificationLoading = false;
+  bool _resendVerificationLoading = false;
+  Timer? _loginLockTimer;
+  int _loginLockSecondsRemaining = 0;
+  bool _forgotPasswordLoading = false;
+  bool _resetPasswordLoading = false;
+
+  String? _pendingPasswordResetEmail;
+  String? _passwordResetError;
+  String? _passwordResetMessage;
 
   String? _loginError;
   String? _registerError;
   String? _sessionMessage;
   String? _registrationMessage;
+  String? _pendingVerificationEmail;
+  String? _verificationError;
+  String? _verificationMessage;
 
   int? _errorStatusCode;
 
@@ -57,6 +129,24 @@ class AuthProvider extends ChangeNotifier {
 
   bool get registerLoading => _registerLoading;
 
+  bool get verificationLoading => _verificationLoading;
+
+  bool get resendVerificationLoading => _resendVerificationLoading;
+
+  bool get loginLocked => _loginLockSecondsRemaining > 0;
+
+  int get loginLockSecondsRemaining => _loginLockSecondsRemaining;
+
+  bool get forgotPasswordLoading => _forgotPasswordLoading;
+
+  bool get resetPasswordLoading => _resetPasswordLoading;
+
+  String? get pendingPasswordResetEmail => _pendingPasswordResetEmail;
+
+  String? get passwordResetError => _passwordResetError;
+
+  String? get passwordResetMessage => _passwordResetMessage;
+
   String? get loginError => _loginError;
 
   String? get registerError => _registerError;
@@ -65,10 +155,20 @@ class AuthProvider extends ChangeNotifier {
 
   String? get registrationMessage => _registrationMessage;
 
+  String? get pendingVerificationEmail => _pendingVerificationEmail;
+
+  String? get verificationError => _verificationError;
+
+  String? get verificationMessage => _verificationMessage;
+
   int? get errorStatusCode => _errorStatusCode;
 
   bool get isLoading =>
-      _sessionInitializing || _loginLoading || _registerLoading;
+      _sessionInitializing ||
+      _loginLoading ||
+      _registerLoading ||
+      _forgotPasswordLoading ||
+      _resetPasswordLoading;
 
   bool get isAuthenticated =>
       _status == AuthStatus.authenticated &&
@@ -152,11 +252,45 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  void _startLoginLockCountdown({int seconds = 60}) {
+    _loginLockTimer?.cancel();
+
+    _loginLockSecondsRemaining = seconds;
+
+    notifyListeners();
+
+    _loginLockTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_loginLockSecondsRemaining <= 1) {
+        timer.cancel();
+
+        _loginLockSecondsRemaining = 0;
+        _loginError = null;
+
+        notifyListeners();
+        return;
+      }
+
+      _loginLockSecondsRemaining--;
+
+      notifyListeners();
+    });
+  }
+
   Future<bool> login({
     required String identifier,
     required String password,
   }) async {
     if (_loginLoading) {
+      return false;
+    }
+    if (loginLocked) {
+      _loginError =
+          'Account temporarily locked. '
+          'Please try again in '
+          '$_loginLockSecondsRemaining seconds.';
+
+      notifyListeners();
+
       return false;
     }
 
@@ -208,6 +342,9 @@ class AuthProvider extends ChangeNotifier {
 
       _token = result.token;
       _currentUser = result.user;
+      _pendingVerificationEmail = null;
+      _verificationError = null;
+      _verificationMessage = null;
 
       await _secureStorage.write(key: _tokenKey, value: result.token);
 
@@ -217,13 +354,19 @@ class AuthProvider extends ChangeNotifier {
 
       return true;
     } catch (error) {
+      final statusCode = _statusCodeFromError(error);
+
+      _errorStatusCode = statusCode;
+
       _loginError = _friendlyError(
         error,
         fallback:
             'Unable to log in. Please check your credentials and try again.',
       );
 
-      _errorStatusCode = _statusCodeFromError(error);
+      if (statusCode == 429) {
+        _startLoginLockCountdown(seconds: 60);
+      }
 
       _status = AuthStatus.unauthenticated;
 
@@ -247,41 +390,31 @@ class AuthProvider extends ChangeNotifier {
     }
 
     final normalizedName = fullName.trim();
-
     final normalizedEmail = email.trim();
-
     final normalizedCustomRole = customRole?.trim();
 
     if (normalizedName.isEmpty) {
       _registerError = 'Full name is required.';
-
       notifyListeners();
-
       return false;
     }
 
     if (normalizedEmail.isEmpty) {
       _registerError = 'Email address is required.';
-
       notifyListeners();
-
       return false;
     }
 
     if (password.isEmpty) {
       _registerError = 'Password is required.';
-
       notifyListeners();
-
       return false;
     }
 
     if (stakeholderRole == StakeholderRole.others &&
         (normalizedCustomRole == null || normalizedCustomRole.isEmpty)) {
       _registerError = 'Please specify your stakeholder role.';
-
       notifyListeners();
-
       return false;
     }
 
@@ -291,6 +424,11 @@ class AuthProvider extends ChangeNotifier {
     _loginError = null;
     _sessionMessage = null;
     _registrationMessage = null;
+
+    _verificationError = null;
+    _verificationMessage = null;
+    _pendingVerificationEmail = null;
+
     _errorStatusCode = null;
 
     notifyListeners();
@@ -304,37 +442,47 @@ class AuthProvider extends ChangeNotifier {
         customRole: normalizedCustomRole,
       );
 
-      final dynamic service = _authService;
+      final result = await _authService.register(request);
 
-      final dynamic result = await service.register(request);
-
-      if (result is! AuthResult) {
-        throw StateError('The registration response is invalid.');
+      if (!result.verificationRequired) {
+        throw StateError('Email verification was not requested by the server.');
       }
 
-      if (result.token.trim().isEmpty) {
-        throw StateError('The server did not return an authentication token.');
+      if (result.email.trim().isEmpty) {
+        throw StateError(
+          'The registration response does not contain an email address.',
+        );
       }
 
-      _token = result.token;
-      _currentUser = result.user;
+      _pendingVerificationEmail = result.email.trim();
 
-      await _secureStorage.write(key: _tokenKey, value: result.token);
+      _registrationMessage = result.message.trim().isEmpty
+          ? 'Account created. Please verify your email.'
+          : result.message.trim();
 
-      _registrationMessage = 'Account created successfully.';
-
-      _status = AuthStatus.authenticated;
+      // Registration does not authenticate the user.
+      // Email verification must be completed first.
+      _status = AuthStatus.unauthenticated;
 
       _errorStatusCode = null;
 
       return true;
     } catch (error) {
+      final statusCode = _statusCodeFromError(error);
+
+      _errorStatusCode = statusCode;
+
       _registerError = _friendlyError(
         error,
         fallback: 'Unable to create your account. Please try again.',
       );
 
-      _errorStatusCode = _statusCodeFromError(error);
+      // Allows an existing unverified account to
+      // continue to the verification/resend screen.
+      if (statusCode == 409 &&
+          _registerError!.toLowerCase().contains('not been verified')) {
+        _pendingVerificationEmail = normalizedEmail;
+      }
 
       _status = AuthStatus.unauthenticated;
 
@@ -344,6 +492,262 @@ class AuthProvider extends ChangeNotifier {
 
       notifyListeners();
     }
+  }
+
+  Future<bool> verifyEmail({required String otp}) async {
+    if (_verificationLoading) {
+      return false;
+    }
+
+    final email = _pendingVerificationEmail?.trim() ?? '';
+
+    if (email.isEmpty) {
+      _verificationError = 'There is no email waiting for verification.';
+
+      notifyListeners();
+
+      return false;
+    }
+
+    final normalizedOtp = otp.trim();
+
+    if (!RegExp(r'^\d{6}$').hasMatch(normalizedOtp)) {
+      _verificationError = 'Enter the 6-digit verification code.';
+
+      notifyListeners();
+
+      return false;
+    }
+
+    _verificationLoading = true;
+
+    _verificationError = null;
+    _verificationMessage = null;
+    _errorStatusCode = null;
+
+    notifyListeners();
+
+    try {
+      final request = VerifyEmailRequest(email: email, otp: normalizedOtp);
+
+      final result = await _authService.verifyEmail(request);
+
+      if (!result.verified) {
+        throw StateError('The email could not be verified.');
+      }
+
+      _verificationMessage = result.message.trim().isEmpty
+          ? 'Email verified successfully.'
+          : result.message.trim();
+
+      _registrationMessage = null;
+
+      _errorStatusCode = null;
+
+      return true;
+    } catch (error) {
+      _verificationError = _friendlyError(
+        error,
+        fallback: 'Unable to verify the email. Please try again.',
+      );
+
+      _errorStatusCode = _statusCodeFromError(error);
+
+      return false;
+    } finally {
+      _verificationLoading = false;
+
+      notifyListeners();
+    }
+  }
+
+  Future<bool> resendVerification() async {
+    if (_resendVerificationLoading) {
+      return false;
+    }
+
+    final email = _pendingVerificationEmail?.trim() ?? '';
+
+    if (email.isEmpty) {
+      _verificationError = 'There is no email waiting for verification.';
+
+      notifyListeners();
+
+      return false;
+    }
+
+    _resendVerificationLoading = true;
+
+    _verificationError = null;
+    _verificationMessage = null;
+    _errorStatusCode = null;
+
+    notifyListeners();
+
+    try {
+      final request = ResendVerificationRequest(email: email);
+
+      final result = await _authService.resendVerification(request);
+
+      _verificationMessage = result.message.trim().isEmpty
+          ? 'A new verification code was sent.'
+          : result.message.trim();
+
+      _errorStatusCode = null;
+
+      return true;
+    } catch (error) {
+      _verificationError = _friendlyError(
+        error,
+        fallback: 'Unable to resend the verification code.',
+      );
+
+      _errorStatusCode = _statusCodeFromError(error);
+
+      return false;
+    } finally {
+      _resendVerificationLoading = false;
+
+      notifyListeners();
+    }
+  }
+
+  Future<bool> forgotPassword({required String email}) async {
+    if (_forgotPasswordLoading) {
+      return false;
+    }
+
+    final normalizedEmail = email.trim().toLowerCase();
+
+    if (normalizedEmail.isEmpty) {
+      _passwordResetError = 'Email address is required.';
+
+      notifyListeners();
+
+      return false;
+    }
+
+    _forgotPasswordLoading = true;
+
+    _passwordResetError = null;
+    _passwordResetMessage = null;
+
+    notifyListeners();
+
+    try {
+      final request = ForgotPasswordRequest(email: normalizedEmail);
+
+      final result = await _authService.forgotPassword(request);
+
+      _pendingPasswordResetEmail = result.email.trim().isNotEmpty
+          ? result.email.trim()
+          : normalizedEmail;
+
+      _passwordResetMessage = result.message;
+
+      return true;
+    } catch (error) {
+      _passwordResetError = _friendlyError(
+        error,
+        fallback:
+            'Unable to request a password reset code. '
+            'Please try again.',
+      );
+
+      return false;
+    } finally {
+      _forgotPasswordLoading = false;
+
+      notifyListeners();
+    }
+  }
+
+  Future<bool> resetPassword({
+    required String otp,
+    required String newPassword,
+  }) async {
+    if (_resetPasswordLoading) {
+      return false;
+    }
+
+    final email = _pendingPasswordResetEmail?.trim() ?? '';
+
+    final normalizedOtp = otp.trim();
+
+    if (email.isEmpty) {
+      _passwordResetError = 'Please request a password reset code first.';
+
+      notifyListeners();
+
+      return false;
+    }
+
+    if (normalizedOtp.length != 6) {
+      _passwordResetError = 'Enter the 6-digit password reset code.';
+
+      notifyListeners();
+
+      return false;
+    }
+
+    if (newPassword.length < 8) {
+      _passwordResetError = 'Use at least 8 characters for your new password.';
+
+      notifyListeners();
+
+      return false;
+    }
+
+    _resetPasswordLoading = true;
+
+    _passwordResetError = null;
+    _passwordResetMessage = null;
+
+    notifyListeners();
+
+    try {
+      final request = ResetPasswordRequest(
+        email: email,
+        otp: normalizedOtp,
+        newPassword: newPassword,
+      );
+
+      final result = await _authService.resetPassword(request);
+
+      if (!result.reset) {
+        _passwordResetError = 'The password could not be reset.';
+
+        return false;
+      }
+
+      _passwordResetMessage = result.message;
+
+      return true;
+    } catch (error) {
+      _passwordResetError = _friendlyError(
+        error,
+        fallback:
+            'Unable to reset your password. '
+            'Please try again.',
+      );
+
+      return false;
+    } finally {
+      _resetPasswordLoading = false;
+
+      notifyListeners();
+    }
+  }
+
+  void clearPasswordResetFeedback({bool clearEmail = false}) {
+    _passwordResetError = null;
+    _passwordResetMessage = null;
+
+    if (clearEmail) {
+      _pendingPasswordResetEmail = null;
+    }
+
+    notifyListeners();
   }
 
   Future<void> logout() async {
@@ -421,6 +825,17 @@ class AuthProvider extends ChangeNotifier {
     }
 
     _registrationMessage = null;
+
+    notifyListeners();
+  }
+
+  void clearVerificationFeedback() {
+    if (_verificationError == null && _verificationMessage == null) {
+      return;
+    }
+
+    _verificationError = null;
+    _verificationMessage = null;
 
     notifyListeners();
   }

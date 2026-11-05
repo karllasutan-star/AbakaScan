@@ -155,11 +155,11 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: _parseInt(json['id']),
+      id: _parseInt(json['id'] ?? json['user_id']),
       fullName: json['full_name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       accountRole: AccountRoleExtension.fromString(
-        json['account_role']?.toString(),
+        (json['account_role'] ?? json['role'])?.toString(),
       ),
       stakeholderRole: StakeholderRoleExtension.fromString(
         json['stakeholder_role']?.toString(),
@@ -210,6 +210,117 @@ class RegisterRequest {
     }
 
     return data;
+  }
+}
+
+class RegistrationPendingResponse {
+  const RegistrationPendingResponse({
+    required this.message,
+    required this.email,
+    required this.verificationRequired,
+  });
+
+  final String message;
+  final String email;
+  final bool verificationRequired;
+
+  factory RegistrationPendingResponse.fromJson(Map<String, dynamic> json) {
+    return RegistrationPendingResponse(
+      message: json['message']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      verificationRequired: json['verification_required'] == true,
+    );
+  }
+}
+
+class VerifyEmailRequest {
+  const VerifyEmailRequest({required this.email, required this.otp});
+
+  final String email;
+  final String otp;
+
+  Map<String, dynamic> toJson() {
+    return {'email': email, 'otp': otp};
+  }
+}
+
+class ResendVerificationRequest {
+  const ResendVerificationRequest({required this.email});
+
+  final String email;
+
+  Map<String, dynamic> toJson() {
+    return {'email': email};
+  }
+}
+
+class EmailVerificationResponse {
+  const EmailVerificationResponse({
+    required this.message,
+    required this.email,
+    required this.verified,
+  });
+
+  final String message;
+  final String email;
+  final bool verified;
+
+  factory EmailVerificationResponse.fromJson(Map<String, dynamic> json) {
+    return EmailVerificationResponse(
+      message: json['message']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      verified: json['verified'] == true,
+    );
+  }
+}
+
+// ============================================================
+// PASSWORD RESET
+// ============================================================
+
+class ForgotPasswordRequest {
+  const ForgotPasswordRequest({required this.email});
+
+  final String email;
+
+  Map<String, dynamic> toJson() {
+    return {'email': email};
+  }
+}
+
+class ResetPasswordRequest {
+  const ResetPasswordRequest({
+    required this.email,
+    required this.otp,
+    required this.newPassword,
+  });
+
+  final String email;
+  final String otp;
+  final String newPassword;
+
+  Map<String, dynamic> toJson() {
+    return {'email': email, 'otp': otp, 'new_password': newPassword};
+  }
+}
+
+class PasswordResetResponse {
+  const PasswordResetResponse({
+    required this.message,
+    required this.email,
+    required this.reset,
+  });
+
+  final String message;
+  final String email;
+  final bool reset;
+
+  factory PasswordResetResponse.fromJson(Map<String, dynamic> json) {
+    return PasswordResetResponse(
+      message: json['message']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      reset: json['reset'] == true,
+    );
   }
 }
 

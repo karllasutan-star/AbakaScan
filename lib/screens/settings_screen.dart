@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../utils/app_navigation.dart';
 import '../app/theme.dart';
 import '../providers/app_providers.dart';
 
@@ -15,61 +16,147 @@ class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   void _returnDashboard(BuildContext context) {
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    returnToDashboard(context);
   }
 
   Future<void> _openClassify(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ClassifyScreen()));
+    await openSection(context, const ClassifyScreen());
   }
 
   Future<void> _openHistory(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const HistoryScreen()));
+    await openSection(context, const HistoryScreen());
   }
 
   Future<void> _openSamples(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const SamplesScreen()));
+    await openSection(context, const SamplesScreen());
   }
 
   Future<void> _openReports(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ReportsScreen()));
+    await openSection(context, const ReportsScreen());
   }
 
   Future<void> _openProfile(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
+    await openSection(context, const ProfileScreen());
   }
 
   Future<void> _openAbout(BuildContext context) async {
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const AboutScreen()));
+    await openSection(context, const AboutScreen());
   }
 
-  void _showUnavailable(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$feature is not connected yet.')));
+  Future<void> _openAppearance(BuildContext context) async {
+    final appearanceProvider = context.read<AppearanceProvider>();
+
+    final selected = await showModalBottomSheet<AppAppearance>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final currentAppearance = appearanceProvider.appearance;
+        final colors = Theme.of(sheetContext).colorScheme;
+
+        Widget option({
+          required AppAppearance appearance,
+          required IconData icon,
+          required String description,
+        }) {
+          final selected = currentAppearance == appearance;
+
+          return ListTile(
+            leading: Icon(
+              icon,
+              color: selected ? colors.primary : colors.onSurfaceVariant,
+            ),
+            title: Text(
+              appearance.displayName,
+              style: AppTypography.body.copyWith(
+                color: colors.onSurface,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+            subtitle: Text(
+              description,
+              style: AppTypography.caption.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+            trailing: Icon(
+              selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+              color: selected ? colors.primary : colors.onSurfaceVariant,
+            ),
+            selected: selected,
+            selectedTileColor: colors.primaryContainer.withValues(alpha: 0.35),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            onTap: () {
+              Navigator.pop(sheetContext, appearance);
+            },
+          );
+        }
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 12, right: 12, bottom: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: Text(
+                    'Appearance',
+                    style: AppTypography.cardTitle.copyWith(
+                      color: colors.onSurface,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Choose how ABAKASCAN should appear.',
+                    style: AppTypography.caption.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                option(
+                  appearance: AppAppearance.system,
+                  icon: Icons.settings_brightness_rounded,
+                  description: 'Follow your device theme.',
+                ),
+                option(
+                  appearance: AppAppearance.light,
+                  icon: Icons.light_mode_outlined,
+                  description: 'Always use the light theme.',
+                ),
+                option(
+                  appearance: AppAppearance.dark,
+                  icon: Icons.dark_mode_outlined,
+                  description: 'Always use the dark theme.',
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected == null || !context.mounted) {
+      return;
+    }
+
+    appearanceProvider.setAppearance(selected);
   }
 
   Future<void> _logout(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
+        final colors = Theme.of(dialogContext).colorScheme;
+
         return AlertDialog(
           icon: Container(
             width: 58,
             height: 58,
-            decoration: const BoxDecoration(
-              color: AppColors.primarySoft,
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.logout_rounded,
-              color: AppColors.primaryDark,
-            ),
+            child: Icon(Icons.logout_rounded, color: colors.primary),
           ),
           title: const Text('Log Out?'),
           content: const Text(
@@ -86,7 +173,8 @@ class SettingsScreen extends StatelessWidget {
             ),
             FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primaryDark,
+                backgroundColor: colors.primary,
+                foregroundColor: colors.onPrimary,
               ),
               onPressed: () {
                 Navigator.pop(dialogContext, true);
@@ -103,11 +191,8 @@ class SettingsScreen extends StatelessWidget {
     }
 
     context.read<ImageSelectionProvider>().removeImage();
-
     context.read<ClassificationProvider>().reset();
-
     context.read<HistoryProvider>().reset();
-
     context.read<AdminProvider>().reset();
 
     await context.read<AuthProvider>().logout();
@@ -121,13 +206,16 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final backgroundColor = theme.scaffoldBackgroundColor;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final desktop = constraints.maxWidth >= AppBreakpoints.desktop;
 
         if (desktop) {
           return Scaffold(
-            backgroundColor: AppColors.background,
+            backgroundColor: backgroundColor,
             body: Row(
               children: [
                 SizedBox(
@@ -162,19 +250,13 @@ class SettingsScreen extends StatelessWidget {
                 Expanded(
                   child: _SettingsBody(
                     onAppearance: () {
-                      _showUnavailable(context, 'Appearance');
-                    },
-                    onNotifications: () {
-                      _showUnavailable(context, 'Notifications');
+                      _openAppearance(context);
                     },
                     onProfile: () {
                       _openProfile(context);
                     },
                     onAbout: () {
                       _openAbout(context);
-                    },
-                    onLogout: () {
-                      _logout(context);
                     },
                   ),
                 ),
@@ -184,10 +266,10 @@ class SettingsScreen extends StatelessWidget {
         }
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: backgroundColor,
           appBar: AppBar(
-            backgroundColor: AppColors.background,
-            surfaceTintColor: AppColors.background,
+            backgroundColor: backgroundColor,
+            surfaceTintColor: Colors.transparent,
             elevation: 0,
             centerTitle: true,
             leading: IconButton(
@@ -201,24 +283,23 @@ class SettingsScreen extends StatelessWidget {
               },
               icon: const Icon(Icons.arrow_back_rounded),
             ),
-            title: const Text('Settings', style: AppTypography.cardTitle),
+            title: Text(
+              'Settings',
+              style: AppTypography.cardTitle.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
           ),
           body: _SettingsBody(
             compact: true,
             onAppearance: () {
-              _showUnavailable(context, 'Appearance');
-            },
-            onNotifications: () {
-              _showUnavailable(context, 'Notifications');
+              _openAppearance(context);
             },
             onProfile: () {
               _openProfile(context);
             },
             onAbout: () {
               _openAbout(context);
-            },
-            onLogout: () {
-              _logout(context);
             },
           ),
         );
@@ -234,23 +315,21 @@ class SettingsScreen extends StatelessWidget {
 class _SettingsBody extends StatelessWidget {
   const _SettingsBody({
     required this.onAppearance,
-    required this.onNotifications,
     required this.onProfile,
     required this.onAbout,
-    required this.onLogout,
     this.compact = false,
   });
 
   final VoidCallback onAppearance;
-  final VoidCallback onNotifications;
   final VoidCallback onProfile;
   final VoidCallback onAbout;
-  final VoidCallback onLogout;
 
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final appearanceProvider = context.watch<AppearanceProvider>();
+
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         compact ? 16 : 28,
@@ -280,17 +359,8 @@ class _SettingsBody extends StatelessWidget {
                     icon: Icons.palette_outlined,
                     title: 'Appearance',
                     description: 'Theme and visual preferences.',
-                    status: 'Not connected yet',
-                    unavailable: true,
+                    status: appearanceProvider.appearance.displayName,
                     onTap: onAppearance,
-                  ),
-                  _SettingsItem(
-                    icon: Icons.notifications_none_rounded,
-                    title: 'Notifications',
-                    description: 'Notification and alert preferences.',
-                    status: 'Not connected yet',
-                    unavailable: true,
-                    onTap: onNotifications,
                   ),
                 ],
               ),
@@ -299,7 +369,7 @@ class _SettingsBody extends StatelessWidget {
 
               _SettingsSection(
                 title: 'Account',
-                subtitle: 'Manage your ABAKASCAN account access.',
+                subtitle: 'Manage your ABAKASCAN account information.',
                 children: [
                   _SettingsItem(
                     icon: Icons.person_outline_rounded,
@@ -315,10 +385,6 @@ class _SettingsBody extends StatelessWidget {
                   ),
                 ],
               ),
-
-              const SizedBox(height: 16),
-
-              _SessionSection(onLogout: onLogout),
             ],
           ),
         ),
@@ -336,24 +402,39 @@ class _DesktopHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'PREFERENCES',
           style: AppTypography.label.copyWith(
-            color: AppColors.primary,
+            color: colors.primary,
             fontSize: 10,
             fontWeight: FontWeight.w700,
             letterSpacing: 2,
           ),
         ),
+
         const SizedBox(height: 8),
-        Text('Settings', style: AppTypography.pageTitle.copyWith(fontSize: 34)),
+
+        Text(
+          'Settings',
+          style: AppTypography.pageTitle.copyWith(
+            fontSize: 34,
+            color: colors.onSurface,
+          ),
+        ),
+
         const SizedBox(height: 7),
+
         Text(
           'Manage available application and account options.',
-          style: AppTypography.bodySecondary.copyWith(height: 1.5),
+          style: AppTypography.bodySecondary.copyWith(
+            height: 1.5,
+            color: colors.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -381,6 +462,7 @@ class _SettingsHero extends StatelessWidget {
               'assets/images/abakascan_auth_hero.png',
               fit: BoxFit.cover,
             ),
+
             const DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -394,18 +476,22 @@ class _SettingsHero extends StatelessWidget {
                 ),
               ),
             ),
+
             const Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(painter: _FiberLinePainter()),
               ),
             ),
+
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const _Brand(),
+
                   const Spacer(),
+
                   Text(
                     'Your workspace,\nyour preferences.',
                     style: AppTypography.pageTitle.copyWith(
@@ -442,12 +528,14 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colors.outlineVariant),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -460,16 +548,29 @@ class _SettingsSection extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: AppTypography.cardTitle.copyWith(fontSize: 15),
+                  style: AppTypography.cardTitle.copyWith(
+                    fontSize: 15,
+                    color: colors.onSurface,
+                  ),
                 ),
+
                 const SizedBox(height: 3),
-                Text(subtitle, style: AppTypography.caption),
+
+                Text(
+                  subtitle,
+                  style: AppTypography.caption.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
+
           const Divider(height: 1),
+
           for (var index = 0; index < children.length; index++) ...[
             children[index],
+
             if (index < children.length - 1)
               const Divider(height: 1, indent: 70),
           ],
@@ -490,7 +591,6 @@ class _SettingsItem extends StatelessWidget {
     required this.description,
     required this.onTap,
     this.status,
-    this.unavailable = false,
   });
 
   final IconData icon;
@@ -500,12 +600,12 @@ class _SettingsItem extends StatelessWidget {
 
   final String? status;
 
-  final bool unavailable;
-
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -518,18 +618,10 @@ class _SettingsItem extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: unavailable
-                      ? AppColors.surfaceMuted
-                      : AppColors.primarySoft,
+                  color: colors.primaryContainer,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: unavailable
-                      ? AppColors.textSecondary
-                      : AppColors.primary,
-                ),
+                child: Icon(icon, size: 20, color: colors.primary),
               ),
 
               const SizedBox(width: 12),
@@ -540,14 +632,20 @@ class _SettingsItem extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: AppTypography.cardTitle.copyWith(fontSize: 13),
+                      style: AppTypography.cardTitle.copyWith(
+                        fontSize: 13,
+                        color: colors.onSurface,
+                      ),
                     ),
 
                     const SizedBox(height: 3),
 
                     Text(
                       description,
-                      style: AppTypography.caption.copyWith(height: 1.4),
+                      style: AppTypography.caption.copyWith(
+                        height: 1.4,
+                        color: colors.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -555,117 +653,37 @@ class _SettingsItem extends StatelessWidget {
 
               const SizedBox(width: 10),
 
-              if (status != null)
+              if (status != null) ...[
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
+                    horizontal: 9,
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceMuted,
+                    color: colors.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     status!,
                     style: AppTypography.caption.copyWith(
-                      fontSize: 8,
+                      color: colors.onSurfaceVariant,
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
 
-              const SizedBox(width: 7),
+                const SizedBox(width: 7),
+              ],
 
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 size: 20,
-                color: AppColors.textSecondary,
+                color: colors.onSurfaceVariant,
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// SESSION
-// ============================================================
-
-class _SessionSection extends StatelessWidget {
-  const _SessionSection({required this.onLogout});
-
-  final VoidCallback onLogout;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final stacked = constraints.maxWidth < 600;
-
-          final text = const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Account Session', style: AppTypography.cardTitle),
-              SizedBox(height: 4),
-              Text(
-                'Sign out of the currently authenticated ABAKASCAN account.',
-                style: AppTypography.caption,
-              ),
-            ],
-          );
-
-          final button = SizedBox(
-            height: 46,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: BorderSide(
-                  color: AppColors.error.withValues(alpha: 0.45),
-                ),
-              ),
-              onPressed: onLogout,
-              icon: const Icon(Icons.logout_rounded),
-              label: const Text('Log Out'),
-            ),
-          );
-
-          if (stacked) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [text, const SizedBox(height: 16), button],
-            );
-          }
-
-          return Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Account Session', style: AppTypography.cardTitle),
-                    SizedBox(height: 4),
-                    Text(
-                      'Sign out of the currently authenticated ABAKASCAN account.',
-                      style: AppTypography.caption,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 20),
-              button,
-            ],
-          );
-        },
       ),
     );
   }
@@ -738,12 +756,6 @@ class _SettingsSidebar extends StatelessWidget {
             icon: Icons.bar_chart_rounded,
             label: 'Reports',
             onTap: onReports,
-          ),
-
-          _SidebarItem(
-            icon: Icons.person_outline,
-            label: 'Profile',
-            onTap: onProfile,
           ),
 
           const _SidebarItem(
