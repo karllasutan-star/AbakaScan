@@ -565,7 +565,7 @@ class _HeroContent extends StatelessWidget {
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 620),
           child: Text(
-            'ABAKASCAN uses image processing and machine learning to analyze abaca fiber images and return a predicted grade with classification confidence.',
+            'ABAKASCAN uses image processing and machine learning to analyze abaca fiber images and return a grade with classification confidence.',
             style: AppTypography.body.copyWith(
               color: AppColors.background.withValues(alpha: 0.78),
               fontSize: 17,
@@ -811,7 +811,7 @@ class _SystemIntroduction extends StatelessWidget {
                   number: '04',
                   icon: Icons.fact_check_outlined,
                   title: 'Review Result',
-                  description: 'View the predicted grade and classification confidence returned by the model.',
+                  description: 'View the grade and classification confidence returned by the model.',
                 ),
               ];
 
@@ -920,7 +920,7 @@ class _HowItWorksSection extends StatelessWidget {
                     number: '04',
                     icon: Icons.analytics_outlined,
                     title: 'Review the Result',
-                    description: 'View the predicted grade, confidence, and saved record information.',
+                    description: 'View the classified grade, confidence, and saved record information.',
                   ),
                 ];
 

@@ -6,56 +6,43 @@ import '../app/theme.dart';
 import '../models/models.dart';
 import '../providers/app_providers.dart';
 import '../services/api_services.dart';
-
 import 'about_screen.dart';
 import 'classification_details_screen.dart';
 import 'classify_screen.dart';
 import 'profile_screen.dart';
 import 'reports_screen.dart';
-import 'samples_screen.dart';
 import 'settings_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
-
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
   bool _historyRequested = false;
-
   String _search = '';
   String _selectedGrade = 'All';
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
     if (_historyRequested) {
       return;
     }
-
     _historyRequested = true;
-
     Future.microtask(_loadHistory);
   }
 
   Future<void> _loadHistory() async {
     final token = context.read<AuthProvider>().token;
-
     if (token == null || token.trim().isEmpty) {
       return;
     }
-
     final history = context.read<HistoryProvider>();
-
     await history.loadHistory(token: token);
-
     if (!mounted) {
       return;
     }
-
     if (history.sessionExpired) {
       await _handleExpiredSession();
     }
@@ -63,19 +50,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _refreshHistory() async {
     final token = context.read<AuthProvider>().token;
-
     if (token == null || token.trim().isEmpty) {
       return;
     }
-
     final history = context.read<HistoryProvider>();
-
     await history.refreshHistory(token: token);
-
     if (!mounted) {
       return;
     }
-
     if (history.sessionExpired) {
       await _handleExpiredSession();
     }
@@ -86,13 +68,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     context.read<ClassificationProvider>().reset();
     context.read<HistoryProvider>().reset();
     context.read<AdminProvider>().reset();
-
     await context.read<AuthProvider>().expireSession();
-
     if (!mounted) {
       return;
     }
-
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
@@ -102,11 +81,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _openClassify() async {
     await openSection(context, const ClassifyScreen());
-
-    if (!mounted) {
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
       return;
     }
-
     await _refreshHistory();
   }
 
@@ -119,56 +96,42 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       ),
     );
-
-    if (!mounted) {
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
       return;
     }
-
     await _refreshHistory();
   }
 
   Future<bool> _deleteFromDetails(ClassificationRecordModel record) async {
     final token = context.read<AuthProvider>().token;
-
     if (token == null || token.trim().isEmpty) {
       return false;
     }
-
     final history = context.read<HistoryProvider>();
-
     final deleted = await history.deleteClassification(
       token: token,
       classificationId: record.id,
     );
-
     if (!mounted) {
       return deleted;
     }
-
     if (history.sessionExpired) {
       await _handleExpiredSession();
       return false;
     }
-
     return deleted;
   }
 
   Future<void> _openReports() async {
     await openSection(context, const ReportsScreen());
-
-    if (!mounted) {
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
       return;
     }
-
     await _refreshHistory();
   }
 
   Future<void> _openProfile() async {
     await openSection(context, const ProfileScreen());
-  }
-
-  Future<void> _openSamples() async {
-    await openSection(context, const SamplesScreen());
   }
 
   Future<void> _openSettings() async {
@@ -184,26 +147,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
     context.read<ClassificationProvider>().reset();
     context.read<HistoryProvider>().reset();
     context.read<AdminProvider>().reset();
-
     await context.read<AuthProvider>().logout();
-
     if (!mounted) {
       return;
     }
-
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
   Widget build(BuildContext context) {
     final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
-
     final colors = Theme.of(context).colorScheme;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final desktop = constraints.maxWidth >= AppBreakpoints.desktop;
-
         if (desktop) {
           return Scaffold(
             backgroundColor: backgroundColor,
@@ -214,7 +171,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   child: _HistorySidebar(
                     onDashboard: _returnDashboard,
                     onClassify: _openClassify,
-                    onSamples: _openSamples,
                     onReports: _openReports,
                     onSettings: _openSettings,
                     onAbout: _openAbout,
@@ -244,36 +200,60 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           );
         }
-
         return Scaffold(
           backgroundColor: backgroundColor,
           appBar: AppBar(
             backgroundColor: backgroundColor,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
-            centerTitle: true,
-            leading: IconButton(
-              tooltip: 'Back',
-              onPressed: () {
-                if (Navigator.of(context).canPop()) {
-                  Navigator.pop(context);
-                } else {
-                  _returnDashboard();
+            automaticallyImplyLeading: false,
+            titleSpacing: 0,
+            toolbarHeight: 56,
+            centerTitle: false,
+            title: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 96) {
+                  return const SizedBox.shrink();
                 }
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: 48,
+                      child: IconButton(
+                        tooltip: 'Back',
+                        onPressed: () {
+                          if (Navigator.of(context).canPop()) {
+                            Navigator.pop(context);
+                          } else {
+                            _returnDashboard();
+                          }
+                        },
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'History',
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.cardTitle.copyWith(
+                          color: colors.onSurface,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 48,
+                      child: IconButton(
+                        tooltip: 'Refresh',
+                        onPressed: _refreshHistory,
+                        icon: const Icon(Icons.refresh_rounded),
+                      ),
+                    ),
+                  ],
+                );
               },
-              icon: const Icon(Icons.arrow_back_rounded),
             ),
-            title: Text(
-              'History',
-              style: AppTypography.cardTitle.copyWith(color: colors.onSurface),
-            ),
-            actions: [
-              IconButton(
-                tooltip: 'Refresh',
-                onPressed: _refreshHistory,
-                icon: const Icon(Icons.refresh_rounded),
-              ),
-            ],
           ),
           body: _HistoryBody(
             search: _search,
@@ -318,14 +298,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 case 0:
                   _returnDashboard();
                   break;
-
                 case 1:
                   break;
-
                 case 2:
                   _openReports();
                   break;
-
                 case 3:
                   _openProfile();
                   break;
@@ -341,7 +318,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
 // ============================================================
 // BODY
 // ============================================================
-
 class _HistoryBody extends StatelessWidget {
   const _HistoryBody({
     required this.search,
@@ -353,27 +329,19 @@ class _HistoryBody extends StatelessWidget {
     required this.onDetails,
     this.compact = false,
   });
-
   final String search;
   final String selectedGrade;
-
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<String> onGradeChanged;
-
   final Future<void> Function() onRefresh;
   final Future<void> Function() onClassify;
-
   final Future<void> Function(ClassificationRecordModel record) onDetails;
-
   final bool compact;
-
   @override
   Widget build(BuildContext context) {
     final history = context.watch<HistoryProvider>();
-
     final records = [...history.records]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
     final grades =
         records
             .map((record) => record.predictedGrade.trim())
@@ -381,89 +349,138 @@ class _HistoryBody extends StatelessWidget {
             .toSet()
             .toList()
           ..sort();
-
     final validSelectedGrade =
         selectedGrade == 'All' || grades.contains(selectedGrade)
         ? selectedGrade
         : 'All';
-
     final query = search.trim().toLowerCase();
-
     final filteredRecords = records.where((record) {
       final matchesSearch =
           query.isEmpty ||
           record.predictedGrade.toLowerCase().contains(query) ||
           record.id.toLowerCase().contains(query);
-
       final matchesGrade =
           validSelectedGrade == 'All' ||
           record.predictedGrade.trim() == validSelectedGrade;
-
       return matchesSearch && matchesGrade;
     }).toList();
+    final colors = Theme.of(context).colorScheme;
+    final header = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!compact)
+          _DesktopHeader(total: records.length, onClassify: onClassify),
+        if (!compact) const SizedBox(height: 20),
+        if (compact) _MobileSummary(total: records.length),
+        if (compact) const SizedBox(height: 14),
+        _SearchBar(onChanged: onSearchChanged),
+        if (grades.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _GradeFilters(
+            grades: grades,
+            selectedGrade: validSelectedGrade,
+            onSelected: onGradeChanged,
+          ),
+        ],
+        const SizedBox(height: 18),
+      ],
+    );
+    final Widget? status;
+    if (history.isLoading && records.isEmpty) {
+      status = const _LoadingState();
+    } else if (history.error != null && records.isEmpty) {
+      status = _ErrorState(message: history.error!, onRetry: onRefresh);
+    } else if (records.isEmpty) {
+      status = _EmptyState(onClassify: onClassify);
+    } else if (filteredRecords.isEmpty) {
+      status = const _NoResultsState();
+    } else {
+      status = null;
+    }
+    final rowOffset = compact ? 1 : 2;
+    final childCount = status != null ? 2 : rowOffset + filteredRecords.length;
+
+    Widget constrain(Widget child) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          child: SizedBox(width: double.infinity, child: child),
+        ),
+      );
+    }
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: SingleChildScrollView(
+      child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(
-          compact ? 16 : 28,
-          compact ? 8 : 26,
-          compact ? 16 : 28,
-          36,
-        ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1180),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (!compact)
-                  _DesktopHeader(total: records.length, onClassify: onClassify),
-
-                if (!compact) const SizedBox(height: 20),
-
-                if (compact) _MobileSummary(total: records.length),
-
-                if (compact) const SizedBox(height: 14),
-
-                _SearchBar(onChanged: onSearchChanged),
-
-                if (grades.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  _GradeFilters(
-                    grades: grades,
-                    selectedGrade: validSelectedGrade,
-                    onSelected: onGradeChanged,
+        slivers: [
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(
+              compact ? 16 : 28,
+              compact ? 8 : 26,
+              compact ? 16 : 28,
+              36,
+            ),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
+                if (index == 0) return constrain(header);
+                if (status != null) return constrain(status);
+                if (!compact && index == 1) {
+                  return constrain(
+                    Container(
+                      decoration: BoxDecoration(
+                        color: colors.surface,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(15),
+                        ),
+                        border: Border.all(color: colors.outlineVariant),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: const _TableHeader(),
+                    ),
+                  );
+                }
+                final rowIndex = index - rowOffset;
+                final record = filteredRecords[rowIndex];
+                final last = rowIndex == filteredRecords.length - 1;
+                final deleting = history.deletingIds.contains(record.id);
+                if (compact) {
+                  return constrain(
+                    Padding(
+                      key: ValueKey('mobile-history-${record.id}'),
+                      padding: EdgeInsets.only(bottom: last ? 0 : 10),
+                      child: _MobileHistoryCard(
+                        record: record,
+                        deleting: deleting,
+                        onDetails: onDetails,
+                      ),
+                    ),
+                  );
+                }
+                return constrain(
+                  Container(
+                    key: ValueKey('desktop-history-${record.id}'),
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: last
+                          ? const BorderRadius.vertical(
+                              bottom: Radius.circular(15),
+                            )
+                          : null,
+                      border: Border.all(color: colors.outlineVariant),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: _DesktopRecordRow(
+                      record: record,
+                      deleting: deleting,
+                      onDetails: onDetails,
+                    ),
                   ),
-                ],
-
-                const SizedBox(height: 18),
-
-                if (history.isLoading && records.isEmpty)
-                  const _LoadingState()
-                else if (history.error != null && records.isEmpty)
-                  _ErrorState(message: history.error!, onRetry: onRefresh)
-                else if (records.isEmpty)
-                  _EmptyState(onClassify: onClassify)
-                else if (filteredRecords.isEmpty)
-                  const _NoResultsState()
-                else if (compact)
-                  _MobileHistoryList(
-                    records: filteredRecords,
-                    deletingIds: history.deletingIds,
-                    onDetails: onDetails,
-                  )
-                else
-                  _DesktopHistoryTable(
-                    records: filteredRecords,
-                    deletingIds: history.deletingIds,
-                    onDetails: onDetails,
-                  ),
-              ],
+                );
+              }, childCount: childCount),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -472,18 +489,13 @@ class _HistoryBody extends StatelessWidget {
 // ============================================================
 // DESKTOP HEADER
 // ============================================================
-
 class _DesktopHeader extends StatelessWidget {
   const _DesktopHeader({required this.total, required this.onClassify});
-
   final int total;
-
   final Future<void> Function() onClassify;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -500,9 +512,7 @@ class _DesktopHeader extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-
               const SizedBox(height: 8),
-
               Text(
                 'Analysis History',
                 style: AppTypography.pageTitle.copyWith(
@@ -510,9 +520,7 @@ class _DesktopHeader extends StatelessWidget {
                   color: colors.onSurface,
                 ),
               ),
-
               const SizedBox(height: 7),
-
               Text(
                 total == 1
                     ? '1 saved classification record.'
@@ -524,7 +532,6 @@ class _DesktopHeader extends StatelessWidget {
             ],
           ),
         ),
-
         SizedBox(
           height: 48,
           child: FilledButton.icon(
@@ -545,12 +552,9 @@ class _DesktopHeader extends StatelessWidget {
 // ============================================================
 // MOBILE SUMMARY
 // ============================================================
-
 class _MobileSummary extends StatelessWidget {
   const _MobileSummary({required this.total});
-
   final int total;
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -574,9 +578,7 @@ class _MobileSummary extends StatelessWidget {
               color: AppColors.fiberBeige,
             ),
           ),
-
           const SizedBox(width: 13),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -588,9 +590,7 @@ class _MobileSummary extends StatelessWidget {
                     fontSize: 15,
                   ),
                 ),
-
                 const SizedBox(height: 3),
-
                 Text(
                   total == 1
                       ? '1 saved classification'
@@ -611,22 +611,17 @@ class _MobileSummary extends StatelessWidget {
 // ============================================================
 // SEARCH
 // ============================================================
-
 class _SearchBar extends StatelessWidget {
   const _SearchBar({required this.onChanged});
-
   final ValueChanged<String> onChanged;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     return TextField(
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: 'Search analysis or grade...',
         prefixIcon: const Icon(Icons.search_rounded),
-        suffixIcon: const Icon(Icons.tune_rounded, size: 19),
         filled: true,
         fillColor: colors.surface,
         contentPadding: const EdgeInsets.symmetric(
@@ -653,25 +648,19 @@ class _SearchBar extends StatelessWidget {
 // ============================================================
 // FILTERS
 // ============================================================
-
 class _GradeFilters extends StatelessWidget {
   const _GradeFilters({
     required this.grades,
     required this.selectedGrade,
     required this.onSelected,
   });
-
   final List<String> grades;
   final String selectedGrade;
-
   final ValueChanged<String> onSelected;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     final options = ['All', ...grades];
-
     return SizedBox(
       height: 38,
       child: ListView.separated(
@@ -680,9 +669,7 @@ class _GradeFilters extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final value = options[index];
-
           final selected = value == selectedGrade;
-
           return ChoiceChip(
             label: Text(value),
             selected: selected,
@@ -712,57 +699,19 @@ class _GradeFilters extends StatelessWidget {
 // ============================================================
 // MOBILE LIST
 // ============================================================
-
-class _MobileHistoryList extends StatelessWidget {
-  const _MobileHistoryList({
-    required this.records,
-    required this.deletingIds,
-    required this.onDetails,
-  });
-
-  final List<ClassificationRecordModel> records;
-
-  final Set<String> deletingIds;
-
-  final Future<void> Function(ClassificationRecordModel record) onDetails;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        for (var index = 0; index < records.length; index++) ...[
-          _MobileHistoryCard(
-            record: records[index],
-            deleting: deletingIds.contains(records[index].id),
-            onDetails: onDetails,
-          ),
-
-          if (index < records.length - 1) const SizedBox(height: 10),
-        ],
-      ],
-    );
-  }
-}
-
 class _MobileHistoryCard extends StatelessWidget {
   const _MobileHistoryCard({
     required this.record,
     required this.deleting,
     required this.onDetails,
   });
-
   final ClassificationRecordModel record;
-
   final bool deleting;
-
   final Future<void> Function(ClassificationRecordModel record) onDetails;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     final confidence = _confidence(record.confidencePercentage);
-
     return Material(
       color: colors.surface,
       borderRadius: BorderRadius.circular(14),
@@ -782,9 +731,7 @@ class _MobileHistoryCard extends StatelessWidget {
           child: Row(
             children: [
               _RecordImage(record: record, width: 66, height: 66),
-
               const SizedBox(width: 12),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,9 +745,7 @@ class _MobileHistoryCard extends StatelessWidget {
                         color: colors.onSurface,
                       ),
                     ),
-
                     const SizedBox(height: 4),
-
                     Text(
                       _formatDateTime(record.createdAt),
                       maxLines: 1,
@@ -810,15 +755,11 @@ class _MobileHistoryCard extends StatelessWidget {
                         color: colors.onSurfaceVariant,
                       ),
                     ),
-
                     const SizedBox(height: 8),
-
                     Row(
                       children: [
                         _GradeChip(grade: record.predictedGrade),
-
                         const SizedBox(width: 8),
-
                         Text(
                           '${confidence.toStringAsFixed(0)}%',
                           style: AppTypography.caption.copyWith(
@@ -831,9 +772,7 @@ class _MobileHistoryCard extends StatelessWidget {
                   ],
                 ),
               ),
-
               const SizedBox(width: 8),
-
               if (deleting)
                 const SizedBox(
                   width: 22,
@@ -856,65 +795,17 @@ class _MobileHistoryCard extends StatelessWidget {
 // ============================================================
 // DESKTOP TABLE
 // ============================================================
-
-class _DesktopHistoryTable extends StatelessWidget {
-  const _DesktopHistoryTable({
-    required this.records,
-    required this.deletingIds,
-    required this.onDetails,
-  });
-
-  final List<ClassificationRecordModel> records;
-
-  final Set<String> deletingIds;
-
-  final Future<void> Function(ClassificationRecordModel record) onDetails;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: colors.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          const _TableHeader(),
-
-          for (var index = 0; index < records.length; index++) ...[
-            _DesktopRecordRow(
-              record: records[index],
-              deleting: deletingIds.contains(records[index].id),
-              onDetails: onDetails,
-            ),
-
-            if (index < records.length - 1) const Divider(height: 1),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 class _TableHeader extends StatelessWidget {
   const _TableHeader();
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     final headerStyle = TextStyle(
       color: colors.onSurfaceVariant,
       fontSize: 10,
       fontWeight: FontWeight.w700,
       letterSpacing: 0.8,
     );
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       color: colors.surfaceContainerHighest,
@@ -945,19 +836,13 @@ class _DesktopRecordRow extends StatelessWidget {
     required this.deleting,
     required this.onDetails,
   });
-
   final ClassificationRecordModel record;
-
   final bool deleting;
-
   final Future<void> Function(ClassificationRecordModel record) onDetails;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     final confidence = _confidence(record.confidencePercentage);
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -977,7 +862,6 @@ class _DesktopRecordRow extends StatelessWidget {
                   child: _RecordImage(record: record, width: 54, height: 44),
                 ),
               ),
-
               Expanded(
                 flex: 3,
                 child: Column(
@@ -990,9 +874,7 @@ class _DesktopRecordRow extends StatelessWidget {
                         color: colors.onSurface,
                       ),
                     ),
-
                     const SizedBox(height: 3),
-
                     Text(
                       record.id,
                       maxLines: 1,
@@ -1005,7 +887,6 @@ class _DesktopRecordRow extends StatelessWidget {
                   ],
                 ),
               ),
-
               Expanded(
                 flex: 2,
                 child: Align(
@@ -1013,7 +894,6 @@ class _DesktopRecordRow extends StatelessWidget {
                   child: _GradeChip(grade: record.predictedGrade),
                 ),
               ),
-
               Expanded(
                 flex: 2,
                 child: Row(
@@ -1032,9 +912,7 @@ class _DesktopRecordRow extends StatelessWidget {
                         ),
                       ),
                     ),
-
                     const SizedBox(width: 9),
-
                     Text(
                       '${confidence.toStringAsFixed(0)}%',
                       style: AppTypography.caption.copyWith(
@@ -1045,7 +923,6 @@ class _DesktopRecordRow extends StatelessWidget {
                   ],
                 ),
               ),
-
               Expanded(
                 flex: 3,
                 child: Text(
@@ -1055,7 +932,6 @@ class _DesktopRecordRow extends StatelessWidget {
                   ),
                 ),
               ),
-
               SizedBox(
                 width: 110,
                 child: Align(
@@ -1085,25 +961,19 @@ class _DesktopRecordRow extends StatelessWidget {
 // ============================================================
 // IMAGE
 // ============================================================
-
 class _RecordImage extends StatelessWidget {
   const _RecordImage({
     required this.record,
     required this.width,
     required this.height,
   });
-
   final ClassificationRecordModel record;
-
   final double width;
   final double height;
-
   @override
   Widget build(BuildContext context) {
     final imageUrl = _resolveImageUrl(record.imageUrl);
-
     final token = context.read<AuthProvider>().token;
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(9),
       child: SizedBox(
@@ -1128,10 +998,8 @@ class _RecordImage extends StatelessWidget {
 
 class _FallbackImage extends StatelessWidget {
   const _FallbackImage({required this.width, required this.height});
-
   final double width;
   final double height;
-
   @override
   Widget build(BuildContext context) {
     return Image.asset(
@@ -1146,16 +1014,12 @@ class _FallbackImage extends StatelessWidget {
 // ============================================================
 // GRADE
 // ============================================================
-
 class _GradeChip extends StatelessWidget {
   const _GradeChip({required this.grade});
-
   final String grade;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -1179,16 +1043,12 @@ class _GradeChip extends StatelessWidget {
 // ============================================================
 // EMPTY
 // ============================================================
-
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onClassify});
-
   final Future<void> Function() onClassify;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 55),
@@ -1208,9 +1068,7 @@ class _EmptyState extends StatelessWidget {
             ),
             child: Icon(Icons.history_rounded, size: 30, color: colors.primary),
           ),
-
           const SizedBox(height: 18),
-
           Text(
             'No analyses yet',
             style: AppTypography.sectionTitle.copyWith(
@@ -1218,9 +1076,7 @@ class _EmptyState extends StatelessWidget {
               color: colors.onSurface,
             ),
           ),
-
           const SizedBox(height: 7),
-
           Text(
             'Your saved fiber classification results will appear here.',
             textAlign: TextAlign.center,
@@ -1228,9 +1084,7 @@ class _EmptyState extends StatelessWidget {
               color: colors.onSurfaceVariant,
             ),
           ),
-
           const SizedBox(height: 20),
-
           FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primaryDark,
@@ -1248,11 +1102,9 @@ class _EmptyState extends StatelessWidget {
 
 class _NoResultsState extends StatelessWidget {
   const _NoResultsState();
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 44, horizontal: 20),
@@ -1268,9 +1120,7 @@ class _NoResultsState extends StatelessWidget {
             size: 34,
             color: colors.onSurfaceVariant,
           ),
-
           const SizedBox(height: 12),
-
           Text(
             'No matching analyses found.',
             style: AppTypography.cardTitle.copyWith(color: colors.onSurface),
@@ -1284,14 +1134,11 @@ class _NoResultsState extends StatelessWidget {
 // ============================================================
 // LOADING / ERROR
 // ============================================================
-
 class _LoadingState extends StatelessWidget {
   const _LoadingState();
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 60),
@@ -1303,9 +1150,7 @@ class _LoadingState extends StatelessWidget {
       child: Column(
         children: [
           const CircularProgressIndicator(strokeWidth: 2.5),
-
           const SizedBox(height: 15),
-
           Text(
             'Loading history...',
             style: AppTypography.bodySecondary.copyWith(
@@ -1320,15 +1165,11 @@ class _LoadingState extends StatelessWidget {
 
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.message, required this.onRetry});
-
   final String message;
-
   final VoidCallback onRetry;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -1340,9 +1181,7 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         children: [
           Icon(Icons.error_outline, color: colors.error, size: 30),
-
           const SizedBox(height: 12),
-
           Text(
             message,
             textAlign: TextAlign.center,
@@ -1350,9 +1189,7 @@ class _ErrorState extends StatelessWidget {
               color: colors.onSurfaceVariant,
             ),
           ),
-
           const SizedBox(height: 15),
-
           OutlinedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),
@@ -1367,27 +1204,21 @@ class _ErrorState extends StatelessWidget {
 // ============================================================
 // DESKTOP SIDEBAR
 // ============================================================
-
 class _HistorySidebar extends StatelessWidget {
   const _HistorySidebar({
     required this.onDashboard,
     required this.onClassify,
-    required this.onSamples,
     required this.onReports,
     required this.onSettings,
     required this.onAbout,
     required this.onLogout,
   });
-
   final VoidCallback onDashboard;
-
   final Future<void> Function() onClassify;
-  final Future<void> Function() onSamples;
   final Future<void> Function() onReports;
   final Future<void> Function() onSettings;
   final Future<void> Function() onAbout;
   final Future<void> Function() onLogout;
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1399,47 +1230,33 @@ class _HistorySidebar extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: 10),
             child: _Brand(),
           ),
-
           const SizedBox(height: 34),
-
           _SidebarItem(
             icon: Icons.dashboard_outlined,
             label: 'Dashboard',
             onTap: onDashboard,
           ),
-
           _SidebarItem(
             icon: Icons.camera_alt_outlined,
             label: 'Analyze',
             onTap: onClassify,
           ),
-
           const _SidebarItem(
             icon: Icons.history_rounded,
             label: 'History',
             selected: true,
           ),
-
-          _SidebarItem(
-            icon: Icons.inventory_2_outlined,
-            label: 'Samples',
-            onTap: onSamples,
-          ),
-
           _SidebarItem(
             icon: Icons.bar_chart_rounded,
             label: 'Reports',
             onTap: onReports,
           ),
-
           _SidebarItem(
             icon: Icons.settings_outlined,
             label: 'Settings',
             onTap: onSettings,
           ),
-
           const Spacer(),
-
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: SizedBox(
@@ -1459,15 +1276,12 @@ class _HistorySidebar extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(height: 10),
-
           _SidebarItem(
             icon: Icons.info_outline_rounded,
             label: 'About',
             onTap: onAbout,
           ),
-
           _SidebarItem(
             icon: Icons.logout_rounded,
             label: 'Log Out',
@@ -1486,20 +1300,15 @@ class _SidebarItem extends StatelessWidget {
     this.selected = false,
     this.onTap,
   });
-
   final IconData icon;
   final String label;
-
   final bool selected;
-
   final VoidCallback? onTap;
-
   @override
   Widget build(BuildContext context) {
     final foreground = selected
         ? Colors.white
         : Colors.white.withValues(alpha: 0.74);
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 7),
       child: Material(
@@ -1513,9 +1322,7 @@ class _SidebarItem extends StatelessWidget {
             child: Row(
               children: [
                 Icon(icon, size: 19, color: foreground),
-
                 const SizedBox(width: 12),
-
                 Expanded(
                   child: Text(
                     label,
@@ -1538,19 +1345,15 @@ class _SidebarItem extends StatelessWidget {
 // ============================================================
 // BRAND
 // ============================================================
-
 class _Brand extends StatelessWidget {
   const _Brand();
-
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         const Icon(Icons.eco_outlined, color: AppColors.fiberBeige, size: 24),
-
         const SizedBox(width: 9),
-
         Text(
           'ABAKASCAN',
           style: AppTypography.label.copyWith(
@@ -1568,28 +1371,23 @@ class _Brand extends StatelessWidget {
 // ============================================================
 // HELPERS
 // ============================================================
-
 double _confidence(double value) {
   if (value <= 1) {
     return (value * 100).clamp(0.0, 100.0).toDouble();
   }
-
   return value.clamp(0.0, 100.0).toDouble();
 }
 
 String _shortId(String id) {
   final value = id.trim();
-
   if (value.length <= 8) {
     return value;
   }
-
   return value.substring(0, 8);
 }
 
 String _formatDateTime(DateTime date) {
   final local = date.toLocal();
-
   const months = [
     'Jan',
     'Feb',
@@ -1604,17 +1402,13 @@ String _formatDateTime(DateTime date) {
     'Nov',
     'Dec',
   ];
-
   final hour = local.hour == 0
       ? 12
       : local.hour > 12
       ? local.hour - 12
       : local.hour;
-
   final minute = local.minute.toString().padLeft(2, '0');
-
   final period = local.hour >= 12 ? 'PM' : 'AM';
-
   return '${months[local.month - 1]} '
       '${local.day}, ${local.year} • '
       '$hour:$minute $period';
@@ -1624,22 +1418,15 @@ String? _resolveImageUrl(String? value) {
   if (value == null || value.trim().isEmpty) {
     return null;
   }
-
   final trimmed = value.trim();
-
   final uri = Uri.tryParse(trimmed);
-
   if (uri != null && uri.hasScheme) {
     return trimmed;
   }
-
   var base = ApiConfig.baseUrl;
-
   if (base.endsWith('/')) {
     base = base.substring(0, base.length - 1);
   }
-
   final path = trimmed.startsWith('/') ? trimmed : '/$trimmed';
-
   return '$base$path';
 }

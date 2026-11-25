@@ -12,7 +12,6 @@ import 'classify_screen.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
 import 'reports_screen.dart';
-import 'samples_screen.dart';
 import 'settings_screen.dart';
 
 extension _DashboardTheme on BuildContext {
@@ -106,7 +105,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _openAnalyze() async {
     await openSection(context, const ClassifyScreen());
 
-    if (!mounted) {
+    // A replaced section can finish while another section is still open.
+    // Refresh only when the user has returned to this dashboard.
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
       return;
     }
 
@@ -116,15 +117,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _openHistory() async {
     await openSection(context, const HistoryScreen());
 
-    if (!mounted) {
+    // A replaced section can finish while another section is still open.
+    // Refresh only when the user has returned to this dashboard.
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
       return;
     }
 
     await _refreshHistory();
-  }
-
-  Future<void> _openSamples() async {
-    await openSection(context, const SamplesScreen());
   }
 
   Future<void> _openReports() async {
@@ -179,7 +178,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: _Sidebar(
                     onAnalyze: _openAnalyze,
                     onHistory: _openHistory,
-                    onSamples: _openSamples,
                     onReports: _openReports,
                     onSettings: _openSettings,
                   ),
@@ -195,7 +193,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             _search = value;
                           });
                         },
-                        onHistory: _openHistory,
                         onProfile: _openProfile,
                         onAbout: _openAbout,
                         onLogout: _logout,
@@ -237,14 +234,12 @@ class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.onAnalyze,
     required this.onHistory,
-    required this.onSamples,
     required this.onReports,
     required this.onSettings,
   });
 
   final VoidCallback onAnalyze;
   final VoidCallback onHistory;
-  final VoidCallback onSamples;
   final VoidCallback onReports;
   final VoidCallback onSettings;
 
@@ -278,12 +273,6 @@ class _Sidebar extends StatelessWidget {
             icon: Icons.history_rounded,
             label: 'History',
             onTap: onHistory,
-          ),
-
-          _NavItem(
-            icon: Icons.inventory_2_outlined,
-            label: 'Samples',
-            onTap: onSamples,
           ),
 
           _NavItem(
@@ -396,7 +385,6 @@ class _TopBar extends StatelessWidget {
   const _TopBar({
     required this.user,
     required this.onSearch,
-    required this.onHistory,
     required this.onProfile,
     required this.onAbout,
     required this.onLogout,
@@ -406,7 +394,6 @@ class _TopBar extends StatelessWidget {
 
   final ValueChanged<String> onSearch;
 
-  final VoidCallback onHistory;
   final VoidCallback onProfile;
   final VoidCallback onAbout;
   final VoidCallback onLogout;
@@ -418,13 +405,6 @@ class _TopBar extends StatelessWidget {
     final rawName = user?.fullName.trim();
 
     final name = rawName == null || rawName.isEmpty ? 'User' : rawName;
-
-    final history = context.watch<HistoryProvider>();
-
-    final recentActivity = [...history.records]
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-    final recentNotifications = recentActivity.take(5).toList();
 
     return Container(
       height: 72,
@@ -458,208 +438,6 @@ class _TopBar extends StatelessWidget {
           ),
 
           const Spacer(),
-
-          PopupMenuButton<_NotificationAction>(
-            tooltip: 'Notifications',
-            offset: const Offset(0, 42),
-            position: PopupMenuPosition.under,
-            onSelected: (action) {
-              switch (action) {
-                case _NotificationAction.history:
-                  onHistory();
-                  break;
-              }
-            },
-            itemBuilder: (context) {
-              final items = <PopupMenuEntry<_NotificationAction>>[
-                PopupMenuItem<_NotificationAction>(
-                  enabled: false,
-                  child: SizedBox(
-                    width: 320,
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.notifications_outlined,
-                          size: 19,
-                          color: colors.primary,
-                        ),
-
-                        const SizedBox(width: 9),
-
-                        Text(
-                          'Recent Activity',
-                          style: AppTypography.cardTitle.copyWith(
-                            fontSize: 14,
-                            color: colors.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const PopupMenuDivider(),
-              ];
-
-              if (history.isLoading && recentNotifications.isEmpty) {
-                items.add(
-                  const PopupMenuItem<_NotificationAction>(
-                    enabled: false,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          SizedBox(width: 12),
-                          Text('Loading activity...'),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              } else if (recentNotifications.isEmpty) {
-                items.add(
-                  PopupMenuItem<_NotificationAction>(
-                    enabled: false,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'No recent activity',
-                            style: AppTypography.cardTitle.copyWith(
-                              fontSize: 13,
-                              color: colors.onSurface,
-                            ),
-                          ),
-
-                          const SizedBox(height: 4),
-
-                          Text(
-                            'Your completed fiber analyses will appear here.',
-                            style: AppTypography.caption.copyWith(
-                              height: 1.4,
-                              color: colors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              } else {
-                for (final record in recentNotifications) {
-                  items.add(
-                    PopupMenuItem<_NotificationAction>(
-                      enabled: false,
-                      child: SizedBox(
-                        width: 320,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: colors.primaryContainer,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.analytics_outlined,
-                                  size: 18,
-                                  color: colors.primary,
-                                ),
-                              ),
-
-                              const SizedBox(width: 11),
-
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Analysis ${_shortId(record.id)} completed',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTypography.cardTitle.copyWith(
-                                        fontSize: 12,
-                                        color: colors.onSurface,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 3),
-
-                                    Text(
-                                      'Predicted grade: ${record.predictedGrade}',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTypography.caption.copyWith(
-                                        color: colors.onSurfaceVariant,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 3),
-
-                                    Text(
-                                      _date(record.createdAt),
-                                      style: AppTypography.caption.copyWith(
-                                        fontSize: 8,
-                                        color: colors.onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }
-              }
-
-              items.add(const PopupMenuDivider());
-
-              items.add(
-                PopupMenuItem<_NotificationAction>(
-                  value: _NotificationAction.history,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.history_rounded, size: 18),
-
-                      const SizedBox(width: 7),
-
-                      Text(
-                        'View History',
-                        style: AppTypography.body.copyWith(
-                          color: colors.onSurface,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-
-              return items;
-            },
-            icon: Icon(
-              Icons.notifications_none_rounded,
-              color: colors.onSurfaceVariant,
-              size: 21,
-            ),
-          ),
-
-          const SizedBox(width: 18),
 
           PopupMenuButton<_AccountAction>(
             tooltip: 'Account',
@@ -733,8 +511,6 @@ class _TopBar extends StatelessWidget {
     );
   }
 }
-
-enum _NotificationAction { history }
 
 enum _AccountAction { profile, settings, about, logout }
 
@@ -1624,17 +1400,6 @@ class _MobileHome extends StatelessWidget {
 
                         const Spacer(),
 
-                        IconButton(
-                          tooltip: 'Notifications',
-                          onPressed: onHistory,
-                          icon: Icon(
-                            Icons.notifications_none_rounded,
-                            color: colors.onSurface,
-                          ),
-                        ),
-
-                        const SizedBox(width: 2),
-
                         PopupMenuButton<_AccountAction>(
                           tooltip: 'Account',
                           position: PopupMenuPosition.under,
@@ -2182,6 +1947,7 @@ class _Thumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = _imageUrl(record.imageUrl);
+    final token = context.read<AuthProvider>().token;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(9),
@@ -2195,6 +1961,9 @@ class _Thumbnail extends StatelessWidget {
               )
             : Image.network(
                 url,
+                headers: token == null || token.trim().isEmpty
+                    ? null
+                    : {'Authorization': 'Bearer ${token.trim()}'},
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Image.asset(

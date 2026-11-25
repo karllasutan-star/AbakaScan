@@ -78,42 +78,52 @@ class _AboutScreenState extends State<AboutScreen> {
         backgroundColor: theme.scaffoldBackgroundColor,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          tooltip: 'Back',
-          onPressed: () {
-            _goBack(context);
-          },
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
+        automaticallyImplyLeading: false,
         titleSpacing: 0,
-        title: Align(
-          alignment: Alignment.centerLeft,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: const _Brand(darkText: true),
-          ),
+        toolbarHeight: 56,
+        title: LayoutBuilder(
+          builder: (context, constraints) {
+            final actionWidth = compact ? 48.0 : 120.0;
+            if (constraints.maxWidth < 48 + actionWidth) {
+              return const SizedBox.shrink();
+            }
+            return Row(
+              children: [
+                SizedBox(
+                  width: 48,
+                  child: IconButton(
+                    tooltip: 'Back',
+                    onPressed: () => _goBack(context),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                  ),
+                ),
+                const Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: _Brand(darkText: true),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: actionWidth,
+                  child: compact
+                      ? IconButton(
+                          tooltip: 'Analyze',
+                          onPressed: () => _openClassify(context),
+                          icon: const Icon(Icons.camera_alt_outlined),
+                        )
+                      : TextButton.icon(
+                          onPressed: () => _openClassify(context),
+                          icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                          label: const Text('Analyze'),
+                        ),
+                ),
+              ],
+            );
+          },
         ),
-        actions: [
-          if (compact)
-            IconButton(
-              tooltip: 'Analyze',
-              onPressed: () {
-                _openClassify(context);
-              },
-              icon: const Icon(Icons.camera_alt_outlined),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: TextButton.icon(
-                onPressed: () {
-                  _openClassify(context);
-                },
-                icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                label: const Text('Analyze'),
-              ),
-            ),
-        ],
       ),
       body: SafeArea(
         child: Stack(
@@ -133,6 +143,10 @@ class _AboutScreenState extends State<AboutScreen> {
                         const SizedBox(height: 110),
 
                         const _AboutStorySection(),
+
+                        const SizedBox(height: 110),
+
+                        const _GradeGuideSection(),
 
                         const SizedBox(height: 130),
 
@@ -358,7 +372,7 @@ class _StoryText extends StatelessWidget {
         const SizedBox(height: 28),
 
         Text(
-          'ABAKASCAN is designed as a computer-assisted tool for analyzing digital images of abaca fiber. Users can provide an image, allow the system to process it through the trained model, and review the predicted grade together with classification confidence.',
+          'ABAKASCAN is designed as a computer-assisted tool for analyzing digital images of abaca fiber. Users can provide an image, allow the system to process it through the trained model, and review the grade together with classification confidence.',
           style: AppTypography.bodySecondary.copyWith(
             color: colors.onSurfaceVariant,
             fontSize: 17,
@@ -387,7 +401,7 @@ class _StoryText extends StatelessWidget {
         const _EditorialPoint(
           number: '03',
           title: 'Clear classification output',
-          description: 'The system presents a predicted grade together with the classification confidence returned by the model.',
+          description: 'The system presents a grade together with the classification confidence returned by the model.',
         ),
       ],
     );
@@ -556,6 +570,260 @@ class _StoryVisual extends StatelessWidget {
 // WORKFLOW
 // ============================================================
 
+// ============================================================
+// GRADE GUIDE
+// ============================================================
+
+class _GradeGuideData {
+  const _GradeGuideData({
+    required this.code,
+    required this.name,
+    required this.color,
+    required this.size,
+    required this.stripping,
+    this.texture,
+  });
+
+  final String code;
+  final String name;
+  final String color;
+  final String size;
+  final String stripping;
+  final String? texture;
+}
+
+const _gradeGuide = [
+  _GradeGuideData(
+    code: 'JK',
+    name: 'Seconds',
+    color: 'Dull brown to dingy light brown or light yellow, '
+        'often with light green streaks.',
+    size: '1.00-1.50 mm',
+    stripping: 'Fair',
+  ),
+  _GradeGuideData(
+    code: 'S-I',
+    name: 'Current',
+    color: 'Light to very light brown.',
+    size: '0.51-0.99 mm',
+    stripping: 'Good',
+    texture: 'Medium soft',
+  ),
+  _GradeGuideData(
+    code: 'S-S2',
+    name: 'Streaky Two',
+    color: 'Light ivory to very pale brown, with red or very '
+        'light purple streaks.',
+    size: '0.20-0.50 mm',
+    stripping: 'Excellent',
+    texture: 'Soft',
+  ),
+];
+
+class _GradeGuideSection extends StatelessWidget {
+  const _GradeGuideSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 900;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _Eyebrow(text: 'GRADE GUIDE'),
+            const SizedBox(height: 12),
+            Text(
+              'Know your fiber grades.',
+              style: AppTypography.sectionTitle.copyWith(
+                color: colors.onSurface,
+                fontSize: compact ? 27 : 36,
+                height: 1.18,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              compact
+                  ? 'Tap a grade to explore its characteristics.'
+                  : 'A quick guide to the three labels used by ABAKASCAN.',
+              style: AppTypography.bodySecondary.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 24),
+            if (compact)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var index = 0; index < _gradeGuide.length; index++) ...[
+                    _GradeGuideCard(grade: _gradeGuide[index], compact: true),
+                    if (index < _gradeGuide.length - 1)
+                      const SizedBox(height: 12),
+                  ],
+                ],
+              )
+            else
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var index = 0; index < _gradeGuide.length; index++) ...[
+                      Expanded(child: _GradeGuideCard(grade: _gradeGuide[index])),
+                      if (index < _gradeGuide.length - 1)
+                        const SizedBox(width: 18),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _GradeGuideCard extends StatelessWidget {
+  const _GradeGuideCard({required this.grade, this.compact = false});
+
+  final _GradeGuideData grade;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(18),
+      side: BorderSide(color: colors.outlineVariant),
+    );
+    final badge = Container(
+      width: 64,
+      height: 44,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: colors.primaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        grade.code,
+        maxLines: 1,
+        style: AppTypography.cardTitle.copyWith(
+          color: colors.onPrimaryContainer,
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+
+    if (compact) {
+      return Material(
+        color: colors.surface,
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
+        child: ExpansionTile(
+          key: PageStorageKey('about-grade-${grade.code}'),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          shape: const Border(),
+          collapsedShape: const Border(),
+          iconColor: colors.primary,
+          collapsedIconColor: colors.onSurfaceVariant,
+          leading: badge,
+          title: Text(
+            grade.name,
+            style: AppTypography.cardTitle.copyWith(
+              color: colors.onSurface,
+              fontSize: 18,
+            ),
+          ),
+          children: [_GradeGuideFacts(grade: grade)],
+        ),
+      );
+    }
+
+    return Material(
+      color: colors.surface,
+      shape: shape,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                badge,
+                const Spacer(),
+                Icon(Icons.grass_rounded, size: 25, color: colors.primary),
+              ],
+            ),
+            const SizedBox(height: 22),
+            Text(
+              grade.name,
+              style: AppTypography.sectionTitle.copyWith(
+                color: colors.onSurface,
+                fontSize: 25,
+              ),
+            ),
+            const SizedBox(height: 22),
+            _GradeGuideFacts(grade: grade),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GradeGuideFacts extends StatelessWidget {
+  const _GradeGuideFacts({required this.grade});
+
+  final _GradeGuideData grade;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final facts = <String, String>{
+      'Strand size': grade.size,
+      'Stripping quality': grade.stripping,
+      if (grade.texture != null) 'Texture': grade.texture!,
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Divider(height: 1, color: colors.outlineVariant),
+        const SizedBox(height: 18),
+        Text('COLOR', style: AppTypography.label.copyWith(
+          color: colors.primary,
+          fontSize: 10,
+          letterSpacing: 1.5,
+        )),
+        const SizedBox(height: 7),
+        Text(grade.color, style: AppTypography.bodySecondary.copyWith(
+          color: colors.onSurfaceVariant,
+          height: 1.5,
+        )),
+        const SizedBox(height: 18),
+        for (final entry in facts.entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              children: [
+                Text(entry.key, style: AppTypography.caption.copyWith(
+                  color: colors.onSurfaceVariant,
+                )),
+                Text(entry.value, style: AppTypography.caption.copyWith(
+                  color: colors.onSurface,
+                  fontWeight: FontWeight.w700,
+                )),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _WorkflowSection extends StatelessWidget {
   const _WorkflowSection();
 
@@ -717,7 +985,7 @@ class _DesktopWorkflow extends StatelessWidget {
             number: '04',
             icon: Icons.bar_chart_rounded,
             title: 'Result',
-            description: 'Review the predicted grade and confidence.',
+            description: 'Review the grade and confidence.',
             visual: _WorkflowVisual.result,
           ),
         ),
@@ -767,7 +1035,7 @@ class _MobileWorkflow extends StatelessWidget {
           number: '04',
           icon: Icons.bar_chart_rounded,
           title: 'Result',
-          description: 'Review the predicted grade and confidence.',
+          description: 'Review the grade and confidence.',
           visual: _WorkflowVisual.result,
         ),
       ],
@@ -998,16 +1266,20 @@ class _WorkflowVisualPanel extends StatelessWidget {
                   Expanded(
                     child: Column(
                       children: [
-                        Text(
-                          'A',
-                          style: AppTypography.pageTitle.copyWith(
-                            color: colors.primary,
-                            fontSize: 38,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'S-S2',
+                            maxLines: 1,
+                            style: AppTypography.pageTitle.copyWith(
+                              color: colors.primary,
+                              fontSize: 32,
+                            ),
                           ),
                         ),
 
                         Text(
-                          'Predicted Grade',
+                          'Grade',
                           style: AppTypography.caption.copyWith(
                             color: colors.onSurfaceVariant,
                           ),
@@ -1319,7 +1591,7 @@ class _ScopeSection extends StatelessWidget {
                         _ScopePoint(
                           icon: Icons.dataset_outlined,
                           title: 'Supported model classes',
-                          description: 'Predictions are limited to grade classes represented in the verified training data.',
+                          description: 'Classification is limited to the supported grades: JK, S-I, and S-S2.',
                         ),
                       ],
                     );
@@ -1386,7 +1658,7 @@ class _ScopeSection extends StatelessWidget {
 
                       Expanded(
                         child: Text(
-                          'ABAKASCAN provides image-based predictions and does not replace official abaca fiber grading procedures.',
+                          'ABAKASCAN uses image-based classification to support abaca fiber assessment.',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 15,

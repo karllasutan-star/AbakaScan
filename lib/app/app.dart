@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -34,6 +35,27 @@ class AbakaScanApp extends StatefulWidget {
 }
 
 class _AbakaScanAppState extends State<AbakaScanApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  bool _wasAuthenticated = false;
+  bool _loginRedirectScheduled = false;
+
+  void _handleAuthenticationChange(AuthProvider authProvider) {
+    final signedOut = _wasAuthenticated && !authProvider.isAuthenticated;
+    _wasAuthenticated = authProvider.isAuthenticated;
+    if (!signedOut || _loginRedirectScheduled) return;
+
+    _loginRedirectScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loginRedirectScheduled = false;
+      if (!mounted || authProvider.isAuthenticated) return;
+      // Run after screen-level logout callbacks; remove all previous routes.
+      _navigatorKey.currentState?.pushNamedAndRemoveUntil<void>(
+        AppRoutes.login,
+        (route) => false,
+      );
+    });
+  }
+
   late final ApiClient _apiClient;
 
   late final AuthService _authService;
@@ -91,17 +113,25 @@ class _AbakaScanAppState extends State<AbakaScanApp> {
       ],
       child: Consumer<AppearanceProvider>(
         builder: (context, appearanceProvider, _) {
-          return MaterialApp(
-            title: 'ABAKASCAN',
-            debugShowCheckedModeBanner: false,
+          return Selector<AuthProvider, bool>(
+            selector: (_, auth) => auth.isAuthenticated,
+            builder: (context, isAuthenticated, _) {
+              final authProvider = context.read<AuthProvider>();
+              _handleAuthenticationChange(authProvider);
+              return MaterialApp(
+                navigatorKey: _navigatorKey,
+                title: 'ABAKASCAN',
+                debugShowCheckedModeBanner: false,
 
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: appearanceProvider.themeMode,
+                theme: AppTheme.lightTheme,
+                darkTheme: AppTheme.darkTheme,
+                themeMode: appearanceProvider.themeMode,
 
-            home: const _AuthGate(),
-            onGenerateRoute: _generateRoute,
-            onUnknownRoute: _unknownRoute,
+                home: const _AuthGate(),
+                onGenerateRoute: _generateRoute,
+                onUnknownRoute: _unknownRoute,
+              );
+            },
           );
         },
       ),
@@ -122,7 +152,10 @@ class _AbakaScanAppState extends State<AbakaScanApp> {
         return _pageRoute(settings: settings, child: const ClassifyScreen());
 
       case AppRoutes.login:
-        return _pageRoute(settings: settings, child: const LoginScreen());
+        return _pageRoute(
+          settings: settings,
+          child: const _AuthGate(showLoginWhenSignedOut: true),
+        );
 
       case AppRoutes.register:
         return _pageRoute(
@@ -160,10 +193,19 @@ class _AbakaScanAppState extends State<AbakaScanApp> {
     );
   }
 
-  MaterialPageRoute<dynamic> _pageRoute({
+  Route<dynamic> _pageRoute({
     required RouteSettings settings,
     required Widget child,
   }) {
+    if (kDebugMode) {
+      return PageRouteBuilder<dynamic>(
+        settings: settings,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+        pageBuilder: (_, animation, secondaryAnimation) => child,
+      );
+    }
+
     return MaterialPageRoute<dynamic>(
       settings: settings,
       builder: (_) => child,
@@ -176,7 +218,9 @@ class _AbakaScanAppState extends State<AbakaScanApp> {
 // ============================================================
 
 class _AuthGate extends StatefulWidget {
-  const _AuthGate();
+  const _AuthGate({this.showLoginWhenSignedOut = false});
+
+  final bool showLoginWhenSignedOut;
 
   @override
   State<_AuthGate> createState() => _AuthGateState();
@@ -200,7 +244,10 @@ class _AuthGateState extends State<_AuthGate> {
         return;
       }
 
-      context.read<AuthProvider>().initializeSession();
+      final authProvider = context.read<AuthProvider>();
+      if (authProvider.status == AuthStatus.initial) {
+        authProvider.initializeSession();
+      }
     });
   }
 
@@ -221,7 +268,9 @@ class _AuthGateState extends State<_AuthGate> {
         return const AdminScreen();
 
       case AuthDestination.publicHome:
-        return const PublicHomeScreen();
+        return widget.showLoginWhenSignedOut
+            ? const LoginScreen()
+            : const PublicHomeScreen();
     }
   }
 }

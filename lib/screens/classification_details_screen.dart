@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
+
 import 'package:provider/provider.dart';
 
 import '../app/theme.dart';
+
 import '../models/models.dart';
+
 import '../providers/app_providers.dart';
+
 import '../services/api_services.dart';
 
 import 'about_screen.dart';
+
 import 'classify_screen.dart';
+
 import 'reports_screen.dart';
-import 'samples_screen.dart';
+
 import 'settings_screen.dart';
 
 class ClassificationDetailsScreen extends StatefulWidget {
   const ClassificationDetailsScreen({
     super.key,
+
     required this.record,
+
     required this.onDelete,
   });
 
@@ -47,43 +55,60 @@ class _ClassificationDetailsScreenState
 
     final confirmed = await showDialog<bool>(
       context: context,
+
       builder: (dialogContext) {
         final colors = Theme.of(dialogContext).colorScheme;
 
         return AlertDialog(
           icon: Container(
             width: 58,
+
             height: 58,
+
             decoration: BoxDecoration(
               color: colors.error.withValues(alpha: 0.10),
+
               shape: BoxShape.circle,
             ),
+
             child: Icon(
               Icons.delete_outline_rounded,
+
               color: colors.error,
+
               size: 28,
             ),
           ),
+
           title: const Text('Delete Classification?'),
+
           content: const Text(
             'This classification record will be permanently removed '
             'from your history. This action cannot be undone.',
+
             textAlign: TextAlign.center,
           ),
+
           actionsAlignment: MainAxisAlignment.center,
+
           actions: [
             OutlinedButton(
               onPressed: () {
                 Navigator.pop(dialogContext, false);
               },
+
               child: const Text('Cancel'),
             ),
+
             FilledButton.icon(
               style: FilledButton.styleFrom(backgroundColor: colors.error),
+
               onPressed: () {
                 Navigator.pop(dialogContext, true);
               },
+
               icon: const Icon(Icons.delete_outline),
+
               label: const Text('Delete Record'),
             ),
           ],
@@ -133,15 +158,6 @@ class _ClassificationDetailsScreenState
 
     await Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const ClassifyScreen()));
-  }
-
-  Future<void> _openSamples() async {
-    if (_deleting) {
-      return;
-    }
-
-    await Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const SamplesScreen()));
   }
 
   Future<void> _openReports() async {
@@ -216,27 +232,39 @@ class _ClassificationDetailsScreenState
         if (desktop) {
           return Scaffold(
             backgroundColor: backgroundColor,
+
             body: Row(
               children: [
                 SizedBox(
                   width: 214,
+
                   child: _DetailsSidebar(
                     onDashboard: _returnToDashboard,
+
                     onClassify: _openClassify,
+
                     onHistory: _backToHistory,
-                    onSamples: _openSamples,
+
                     onReports: _openReports,
+
                     onSettings: _openSettings,
+
                     onAbout: _openAbout,
+
                     onLogout: _logout,
+
                     disabled: _deleting,
                   ),
                 ),
+
                 Expanded(
                   child: _DetailsBody(
                     record: widget.record,
+
                     deleting: _deleting,
+
                     onBack: _backToHistory,
+
                     onDelete: _deleteRecord,
                   ),
                 ),
@@ -247,54 +275,97 @@ class _ClassificationDetailsScreenState
 
         return Scaffold(
           backgroundColor: backgroundColor,
+
           appBar: AppBar(
             backgroundColor: backgroundColor,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            centerTitle: true,
-            leading: IconButton(
-              tooltip: 'Back to History',
-              onPressed: _deleting ? null : _backToHistory,
-              icon: const Icon(Icons.arrow_back_rounded),
-            ),
-            title: Text(
-              'Analysis Details',
-              style: AppTypography.cardTitle.copyWith(color: colors.onSurface),
-            ),
-            actions: [
-              PopupMenuButton<_DetailsMenuAction>(
-                enabled: !_deleting,
-                icon: const Icon(Icons.more_vert_rounded),
-                onSelected: (action) {
-                  switch (action) {
-                    case _DetailsMenuAction.delete:
-                      _deleteRecord();
-                      break;
 
-                    case _DetailsMenuAction.dashboard:
-                      _returnToDashboard();
-                      break;
-                  }
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
-                    value: _DetailsMenuAction.dashboard,
-                    child: Text('Dashboard'),
-                  ),
-                  PopupMenuDivider(),
-                  PopupMenuItem(
-                    value: _DetailsMenuAction.delete,
-                    child: Text('Delete Record'),
-                  ),
-                ],
-              ),
-            ],
+            surfaceTintColor: Colors.transparent,
+
+            elevation: 0,
+
+            automaticallyImplyLeading: false,
+            titleSpacing: 0,
+            toolbarHeight: 56,
+            centerTitle: false,
+            title: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 96) {
+                  return const SizedBox.shrink();
+                }
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: 48,
+                      child: IconButton(
+                        tooltip: 'Back to History',
+                        onPressed: _deleting ? null : _backToHistory,
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Analysis Details',
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.cardTitle.copyWith(
+                          color: colors.onSurface,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 48,
+                      child: PopupMenuButton<_DetailsMenuAction>(
+                        enabled: !_deleting,
+
+                        icon: const Icon(Icons.more_vert_rounded),
+
+                        onSelected: (action) {
+                          switch (action) {
+                            case _DetailsMenuAction.delete:
+                              _deleteRecord();
+
+                              break;
+
+                            case _DetailsMenuAction.dashboard:
+                              _returnToDashboard();
+
+                              break;
+                          }
+                        },
+
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: _DetailsMenuAction.dashboard,
+
+                            child: Text('Dashboard'),
+                          ),
+
+                          PopupMenuDivider(),
+
+                          PopupMenuItem(
+                            value: _DetailsMenuAction.delete,
+
+                            child: Text('Delete Record'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
+
           body: _DetailsBody(
             record: widget.record,
+
             deleting: _deleting,
+
             onBack: _backToHistory,
+
             onDelete: _deleteRecord,
+
             compact: true,
           ),
         );
@@ -306,15 +377,21 @@ class _ClassificationDetailsScreenState
 enum _DetailsMenuAction { dashboard, delete }
 
 // ============================================================
+
 // BODY
+
 // ============================================================
 
 class _DetailsBody extends StatelessWidget {
   const _DetailsBody({
     required this.record,
+
     required this.deleting,
+
     required this.onBack,
+
     required this.onDelete,
+
     this.compact = false,
   });
 
@@ -335,15 +412,21 @@ class _DetailsBody extends StatelessWidget {
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         compact ? 16 : 28,
+
         compact ? 8 : 26,
+
         compact ? 16 : 28,
+
         36,
       ),
+
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1180),
+
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
               if (!compact) _DesktopHeader(record: record, onBack: onBack),
 
@@ -359,6 +442,7 @@ class _DetailsBody extends StatelessWidget {
 
                   final image = _StoredImagePanel(
                     imageUrl: record.imageUrl,
+
                     token: token,
                   );
 
@@ -380,6 +464,7 @@ class _DetailsBody extends StatelessWidget {
 
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
+
                     children: [
                       Expanded(flex: 6, child: image),
 
@@ -395,8 +480,11 @@ class _DetailsBody extends StatelessWidget {
 
               _RecordActions(
                 deleting: deleting,
+
                 onBack: onBack,
+
                 onDelete: onDelete,
+
                 compact: compact,
               ),
             ],
@@ -408,7 +496,9 @@ class _DetailsBody extends StatelessWidget {
 }
 
 // ============================================================
+
 // HEADERS
+
 // ============================================================
 
 class _DesktopHeader extends StatelessWidget {
@@ -424,17 +514,23 @@ class _DesktopHeader extends StatelessWidget {
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
+
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
               Text(
                 'CLASSIFICATION HISTORY',
+
                 style: AppTypography.label.copyWith(
                   color: colors.primary,
+
                   fontSize: 10,
+
                   fontWeight: FontWeight.w700,
+
                   letterSpacing: 2,
                 ),
               ),
@@ -443,8 +539,10 @@ class _DesktopHeader extends StatelessWidget {
 
               Text(
                 'Analysis Details',
+
                 style: AppTypography.pageTitle.copyWith(
                   fontSize: 34,
+
                   color: colors.onSurface,
                 ),
               ),
@@ -453,8 +551,10 @@ class _DesktopHeader extends StatelessWidget {
 
               Text(
                 'Review the saved image and classification information for Analysis ${_shortId(record.id)}.',
+
                 style: AppTypography.bodySecondary.copyWith(
                   height: 1.5,
+
                   color: colors.onSurfaceVariant,
                 ),
               ),
@@ -464,7 +564,9 @@ class _DesktopHeader extends StatelessWidget {
 
         OutlinedButton.icon(
           onPressed: onBack,
+
           icon: const Icon(Icons.arrow_back_rounded),
+
           label: const Text('Back to History'),
         ),
       ],
@@ -483,15 +585,19 @@ class _MobileRecordHeader extends StatelessWidget {
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
+
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
               Text(
                 'Analysis ${_shortId(record.id)}',
+
                 style: AppTypography.cardTitle.copyWith(
                   fontSize: 16,
+
                   color: colors.onSurface,
                 ),
               ),
@@ -500,6 +606,7 @@ class _MobileRecordHeader extends StatelessWidget {
 
               Text(
                 _formatDateTime(record.createdAt),
+
                 style: AppTypography.caption.copyWith(
                   color: colors.onSurfaceVariant,
                 ),
@@ -515,13 +622,16 @@ class _MobileRecordHeader extends StatelessWidget {
 }
 
 // ============================================================
+
 // IMAGE PANEL
+
 // ============================================================
 
 class _StoredImagePanel extends StatelessWidget {
   const _StoredImagePanel({required this.imageUrl, required this.token});
 
   final String? imageUrl;
+
   final String? token;
 
   @override
@@ -532,25 +642,35 @@ class _StoredImagePanel extends StatelessWidget {
 
     return Container(
       width: double.infinity,
+
       clipBehavior: Clip.antiAlias,
+
       decoration: BoxDecoration(
         color: colors.surface,
+
         borderRadius: BorderRadius.circular(18),
+
         border: Border.all(color: colors.outlineVariant),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
           AspectRatio(
             aspectRatio: 4 / 3,
+
             child: resolvedUrl == null
                 ? const _ImageFallback(unavailable: false)
                 : Image.network(
                     resolvedUrl,
+
                     fit: BoxFit.cover,
+
                     headers: token == null || token!.trim().isEmpty
                         ? null
                         : {'Authorization': 'Bearer ${token!.trim()}'},
+
                     loadingBuilder: (context, child, progress) {
                       if (progress == null) {
                         return child;
@@ -558,6 +678,7 @@ class _StoredImagePanel extends StatelessWidget {
 
                       return const _ImageLoading();
                     },
+
                     errorBuilder: (context, error, stackTrace) {
                       return const _ImageFallback(unavailable: true);
                     },
@@ -566,18 +687,25 @@ class _StoredImagePanel extends StatelessWidget {
 
           Padding(
             padding: const EdgeInsets.all(14),
+
             child: Row(
               children: [
                 Container(
                   width: 38,
+
                   height: 38,
+
                   decoration: BoxDecoration(
                     color: colors.primaryContainer,
+
                     shape: BoxShape.circle,
                   ),
+
                   child: Icon(
                     Icons.image_outlined,
+
                     color: colors.primary,
+
                     size: 18,
                   ),
                 ),
@@ -587,9 +715,11 @@ class _StoredImagePanel extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+
                     children: [
                       Text(
                         'Submitted Fiber Image',
+
                         style: AppTypography.cardTitle.copyWith(
                           color: colors.onSurface,
                         ),
@@ -599,6 +729,7 @@ class _StoredImagePanel extends StatelessWidget {
 
                       Text(
                         'Stored image associated with this analysis',
+
                         style: AppTypography.caption.copyWith(
                           color: colors.onSurfaceVariant,
                         ),
@@ -624,13 +755,18 @@ class _ImageLoading extends StatelessWidget {
 
     return Container(
       color: colors.surfaceContainerHighest,
+
       alignment: Alignment.center,
+
       child: Column(
         mainAxisSize: MainAxisSize.min,
+
         children: [
           const SizedBox(
             width: 30,
+
             height: 30,
+
             child: CircularProgressIndicator(strokeWidth: 2.5),
           ),
 
@@ -638,6 +774,7 @@ class _ImageLoading extends StatelessWidget {
 
           Text(
             'Loading image...',
+
             style: AppTypography.bodySecondary.copyWith(
               color: colors.onSurfaceVariant,
             ),
@@ -657,6 +794,7 @@ class _ImageFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
+
       children: [
         Image.asset('assets/images/abakascan_auth_hero.png', fit: BoxFit.cover),
 
@@ -671,14 +809,18 @@ class _ImageFallback extends StatelessWidget {
         Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
+
             child: Column(
               mainAxisSize: MainAxisSize.min,
+
               children: [
                 Icon(
                   unavailable
                       ? Icons.broken_image_outlined
                       : Icons.image_not_supported_outlined,
+
                   color: AppColors.fiberBeige,
+
                   size: 42,
                 ),
 
@@ -688,7 +830,9 @@ class _ImageFallback extends StatelessWidget {
                   unavailable
                       ? 'Stored image unavailable'
                       : 'No stored image available',
+
                   textAlign: TextAlign.center,
+
                   style: AppTypography.cardTitle.copyWith(color: Colors.white),
                 ),
 
@@ -698,7 +842,9 @@ class _ImageFallback extends StatelessWidget {
                   unavailable
                       ? 'The image associated with this record could not be displayed.'
                       : 'This classification record does not include an accessible stored image.',
+
                   textAlign: TextAlign.center,
+
                   style: AppTypography.caption.copyWith(
                     color: Colors.white.withValues(alpha: 0.72),
                   ),
@@ -713,7 +859,9 @@ class _ImageFallback extends StatelessWidget {
 }
 
 // ============================================================
+
 // INFORMATION
+
 // ============================================================
 
 class _ClassificationInformation extends StatelessWidget {
@@ -729,21 +877,31 @@ class _ClassificationInformation extends StatelessWidget {
 
     return Container(
       width: double.infinity,
+
       padding: const EdgeInsets.all(20),
+
       decoration: BoxDecoration(
         color: colors.surface,
+
         borderRadius: BorderRadius.circular(18),
+
         border: Border.all(color: colors.outlineVariant),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
           Text(
             'SAVED CLASSIFICATION',
+
             style: AppTypography.label.copyWith(
               color: colors.primary,
+
               fontSize: 9,
+
               letterSpacing: 1.7,
+
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -752,24 +910,34 @@ class _ClassificationInformation extends StatelessWidget {
 
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
+
             children: [
               Expanded(
                 child: Container(
                   constraints: const BoxConstraints(minHeight: 145),
+
                   padding: const EdgeInsets.all(18),
+
                   decoration: BoxDecoration(
                     color: colors.primaryContainer,
+
                     borderRadius: BorderRadius.circular(15),
                   ),
+
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
+
                     crossAxisAlignment: CrossAxisAlignment.start,
+
                     children: [
                       Text(
-                        'PREDICTED GRADE',
+                        'GRADE',
+
                         style: AppTypography.label.copyWith(
                           color: colors.primary,
+
                           fontSize: 8,
+
                           letterSpacing: 1.3,
                         ),
                       ),
@@ -778,9 +946,12 @@ class _ClassificationInformation extends StatelessWidget {
 
                       Text(
                         record.predictedGrade,
+
                         style: AppTypography.pageTitle.copyWith(
                           color: colors.onPrimaryContainer,
+
                           fontSize: 30,
+
                           height: 1.02,
                         ),
                       ),
@@ -799,20 +970,23 @@ class _ClassificationInformation extends StatelessWidget {
 
           Text(
             'Analysis Information',
+
             style: AppTypography.cardTitle.copyWith(
               fontSize: 15,
+
               color: colors.onSurface,
             ),
           ),
 
           const SizedBox(height: 12),
 
-          _DetailRow(label: 'Predicted Grade', value: record.predictedGrade),
+          _DetailRow(label: 'Grade', value: record.predictedGrade),
 
           const Divider(height: 23),
 
           _DetailRow(
             label: 'Confidence',
+
             value: '${confidence.toStringAsFixed(1)}%',
           ),
 
@@ -820,6 +994,7 @@ class _ClassificationInformation extends StatelessWidget {
 
           _DetailRow(
             label: 'Classification Date',
+
             value: _formatDateTime(record.createdAt),
           ),
 
@@ -827,7 +1002,9 @@ class _ClassificationInformation extends StatelessWidget {
 
           _DetailRow(
             label: 'Classification ID',
+
             value: record.id,
+
             selectable: true,
           ),
 
@@ -842,13 +1019,18 @@ class _ClassificationInformation extends StatelessWidget {
 
           Container(
             width: double.infinity,
+
             padding: const EdgeInsets.all(13),
+
             decoration: BoxDecoration(
               color: colors.surfaceContainerHighest,
+
               borderRadius: BorderRadius.circular(11),
             ),
+
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
+
               children: [
                 Icon(Icons.history_outlined, size: 19, color: colors.primary),
 
@@ -857,8 +1039,10 @@ class _ClassificationInformation extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'This is a saved classification record from your analysis history.',
+
                     style: AppTypography.caption.copyWith(
                       height: 1.45,
+
                       color: colors.onSurfaceVariant,
                     ),
                   ),
@@ -883,28 +1067,39 @@ class _ConfidenceCircle extends StatelessWidget {
 
     return SizedBox(
       width: 108,
+
       height: 108,
+
       child: Stack(
         alignment: Alignment.center,
+
         children: [
           SizedBox(
             width: 100,
+
             height: 100,
+
             child: CircularProgressIndicator(
               value: confidence / 100,
+
               strokeWidth: 9,
+
               backgroundColor: colors.surfaceContainerHighest,
+
               valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
             ),
           ),
 
           Column(
             mainAxisSize: MainAxisSize.min,
+
             children: [
               Text(
                 '${confidence.toStringAsFixed(0)}%',
+
                 style: AppTypography.sectionTitle.copyWith(
                   color: colors.onSurface,
+
                   fontSize: 22,
                 ),
               ),
@@ -913,8 +1108,10 @@ class _ConfidenceCircle extends StatelessWidget {
 
               Text(
                 'Confidence',
+
                 style: AppTypography.caption.copyWith(
                   fontSize: 8,
+
                   color: colors.onSurfaceVariant,
                 ),
               ),
@@ -929,11 +1126,14 @@ class _ConfidenceCircle extends StatelessWidget {
 class _DetailRow extends StatelessWidget {
   const _DetailRow({
     required this.label,
+
     required this.value,
+
     this.selectable = false,
   });
 
   final String label;
+
   final String value;
 
   final bool selectable;
@@ -945,28 +1145,37 @@ class _DetailRow extends StatelessWidget {
     final valueWidget = selectable
         ? SelectableText(
             value,
+
             textAlign: TextAlign.right,
+
             style: AppTypography.body.copyWith(
               color: colors.onSurface,
+
               fontWeight: FontWeight.w600,
             ),
           )
         : Text(
             value,
+
             textAlign: TextAlign.right,
+
             style: AppTypography.body.copyWith(
               color: colors.onSurface,
+
               fontWeight: FontWeight.w600,
             ),
           );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
+
       children: [
         Expanded(
           flex: 4,
+
           child: Text(
             label,
+
             style: AppTypography.bodySecondary.copyWith(
               color: colors.onSurfaceVariant,
             ),
@@ -982,14 +1191,19 @@ class _DetailRow extends StatelessWidget {
 }
 
 // ============================================================
+
 // ACTIONS
+
 // ============================================================
 
 class _RecordActions extends StatelessWidget {
   const _RecordActions({
     required this.deleting,
+
     required this.onBack,
+
     required this.onDelete,
+
     required this.compact,
   });
 
@@ -1007,31 +1221,42 @@ class _RecordActions extends StatelessWidget {
 
     final backButton = SizedBox(
       height: 51,
+
       child: OutlinedButton.icon(
         onPressed: deleting ? null : onBack,
+
         icon: const Icon(Icons.arrow_back_rounded),
+
         label: const Text('Back to History'),
       ),
     );
 
     final deleteButton = SizedBox(
       height: 51,
+
       child: FilledButton.icon(
         style: FilledButton.styleFrom(
           backgroundColor: colors.error,
+
           foregroundColor: Colors.white,
         ),
+
         onPressed: deleting ? null : onDelete,
+
         icon: deleting
             ? const SizedBox(
                 width: 18,
+
                 height: 18,
+
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
+
                   color: Colors.white,
                 ),
               )
             : const Icon(Icons.delete_outline),
+
         label: Text(deleting ? 'Deleting...' : 'Delete Record'),
       ),
     );
@@ -1039,48 +1264,66 @@ class _RecordActions extends StatelessWidget {
     if (compact) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+
         children: [backButton, const SizedBox(height: 10), deleteButton],
       );
     }
 
     return Container(
       width: double.infinity,
+
       padding: const EdgeInsets.all(16),
+
       decoration: BoxDecoration(
         color: colors.surface,
+
         borderRadius: BorderRadius.circular(14),
+
         border: Border.all(color: colors.outlineVariant),
       ),
+
       child: Row(children: [backButton, const Spacer(), deleteButton]),
     );
   }
 }
 
 // ============================================================
+
 // SIDEBAR
+
 // ============================================================
 
 class _DetailsSidebar extends StatelessWidget {
   const _DetailsSidebar({
     required this.onDashboard,
+
     required this.onClassify,
+
     required this.onHistory,
-    required this.onSamples,
+
     required this.onReports,
+
     required this.onSettings,
+
     required this.onAbout,
+
     required this.onLogout,
+
     required this.disabled,
   });
 
   final VoidCallback onDashboard;
+
   final VoidCallback onHistory;
 
   final Future<void> Function() onClassify;
-  final Future<void> Function() onSamples;
+
   final Future<void> Function() onReports;
+
   final Future<void> Function() onSettings;
+
   final Future<void> Function() onAbout;
+
   final Future<void> Function() onLogout;
 
   final bool disabled;
@@ -1089,11 +1332,14 @@ class _DetailsSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.primaryDark,
+
       padding: const EdgeInsets.fromLTRB(14, 26, 14, 18),
+
       child: Column(
         children: [
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 10),
+
             child: _Brand(),
           ),
 
@@ -1101,38 +1347,43 @@ class _DetailsSidebar extends StatelessWidget {
 
           _SidebarItem(
             icon: Icons.dashboard_outlined,
+
             label: 'Dashboard',
+
             onTap: disabled ? null : onDashboard,
           ),
 
           _SidebarItem(
             icon: Icons.camera_alt_outlined,
+
             label: 'Analyze',
+
             onTap: disabled ? null : onClassify,
           ),
 
           _SidebarItem(
             icon: Icons.history_rounded,
+
             label: 'History',
+
             selected: true,
+
             onTap: disabled ? null : onHistory,
           ),
 
           _SidebarItem(
-            icon: Icons.inventory_2_outlined,
-            label: 'Samples',
-            onTap: disabled ? null : onSamples,
-          ),
-
-          _SidebarItem(
             icon: Icons.bar_chart_rounded,
+
             label: 'Reports',
+
             onTap: disabled ? null : onReports,
           ),
 
           _SidebarItem(
             icon: Icons.settings_outlined,
+
             label: 'Settings',
+
             onTap: disabled ? null : onSettings,
           ),
 
@@ -1140,14 +1391,19 @@ class _DetailsSidebar extends StatelessWidget {
 
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
+
             child: SizedBox(
               height: 120,
+
               width: double.infinity,
+
               child: Stack(
                 fit: StackFit.expand,
+
                 children: [
                   Image.asset(
                     'assets/images/abakascan_auth_hero.png',
+
                     fit: BoxFit.cover,
                   ),
 
@@ -1163,13 +1419,17 @@ class _DetailsSidebar extends StatelessWidget {
 
           _SidebarItem(
             icon: Icons.info_outline_rounded,
+
             label: 'About',
+
             onTap: disabled ? null : onAbout,
           ),
 
           _SidebarItem(
             icon: Icons.logout_rounded,
+
             label: 'Log Out',
+
             onTap: disabled ? null : onLogout,
           ),
         ],
@@ -1181,12 +1441,16 @@ class _DetailsSidebar extends StatelessWidget {
 class _SidebarItem extends StatelessWidget {
   const _SidebarItem({
     required this.icon,
+
     required this.label,
+
     this.selected = false,
+
     this.onTap,
   });
 
   final IconData icon;
+
   final String label;
 
   final bool selected;
@@ -1203,14 +1467,20 @@ class _SidebarItem extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 7),
+
       child: Material(
         color: selected ? AppColors.primary : Colors.transparent,
+
         borderRadius: BorderRadius.circular(9),
+
         child: InkWell(
           onTap: onTap,
+
           borderRadius: BorderRadius.circular(9),
+
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+
             child: Row(
               children: [
                 Icon(icon, size: 19, color: foreground),
@@ -1220,9 +1490,12 @@ class _SidebarItem extends StatelessWidget {
                 Expanded(
                   child: Text(
                     label,
+
                     style: AppTypography.bodySecondary.copyWith(
                       color: foreground,
+
                       fontSize: 13,
+
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
@@ -1237,7 +1510,9 @@ class _SidebarItem extends StatelessWidget {
 }
 
 // ============================================================
+
 // GRADE CHIP
+
 // ============================================================
 
 class _GradeChip extends StatelessWidget {
@@ -1251,15 +1526,21 @@ class _GradeChip extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+
       decoration: BoxDecoration(
         color: colors.primaryContainer,
+
         borderRadius: BorderRadius.circular(999),
       ),
+
       child: Text(
         grade,
+
         style: AppTypography.caption.copyWith(
           color: colors.onPrimaryContainer,
+
           fontWeight: FontWeight.w700,
+
           fontSize: 9,
         ),
       ),
@@ -1268,7 +1549,9 @@ class _GradeChip extends StatelessWidget {
 }
 
 // ============================================================
+
 // BRAND
+
 // ============================================================
 
 class _Brand extends StatelessWidget {
@@ -1278,6 +1561,7 @@ class _Brand extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
+
       children: [
         const Icon(Icons.eco_outlined, color: AppColors.fiberBeige, size: 24),
 
@@ -1285,10 +1569,14 @@ class _Brand extends StatelessWidget {
 
         Text(
           'ABAKASCAN',
+
           style: AppTypography.label.copyWith(
             color: Colors.white,
+
             fontSize: 14,
+
             fontWeight: FontWeight.w700,
+
             letterSpacing: 2.2,
           ),
         ),
@@ -1298,7 +1586,9 @@ class _Brand extends StatelessWidget {
 }
 
 // ============================================================
+
 // DECORATIVE FIBER LINES
+
 // ============================================================
 
 class _FiberLinePainter extends CustomPainter {
@@ -1313,15 +1603,21 @@ class _FiberLinePainter extends CustomPainter {
         ..moveTo(-20, y)
         ..cubicTo(
           size.width * 0.25,
+
           y + 45,
+
           size.width * 0.67,
+
           y - 36,
+
           size.width + 30,
+
           y + 8,
         );
 
       canvas.drawPath(
         path,
+
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = index % 3 == 0 ? 1.1 : 0.7
@@ -1337,7 +1633,9 @@ class _FiberLinePainter extends CustomPainter {
 }
 
 // ============================================================
+
 // HELPERS
+
 // ============================================================
 
 String? _resolveImageUrl(String? value) {
@@ -1379,16 +1677,27 @@ String _formatDateTime(DateTime date) {
 
   const months = [
     'Jan',
+
     'Feb',
+
     'Mar',
+
     'Apr',
+
     'May',
+
     'Jun',
+
     'Jul',
+
     'Aug',
+
     'Sep',
+
     'Oct',
+
     'Nov',
+
     'Dec',
   ];
 

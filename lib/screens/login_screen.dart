@@ -11,9 +11,7 @@ enum _AuthMode { login, register, forgotPassword }
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.startInRegisterMode = false});
-
   final bool startInRegisterMode;
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -22,26 +20,21 @@ class _LoginScreenState extends State<LoginScreen> {
   final _loginFormKey = GlobalKey<FormState>();
   final _registerFormKey = GlobalKey<FormState>();
   final _forgotPasswordFormKey = GlobalKey<FormState>();
-
   final _loginEmailController = TextEditingController();
   final _loginPasswordController = TextEditingController();
-
+  final _loginPasswordFocusNode = FocusNode();
+  int _loginPasswordRevision = 0;
   final _fullNameController = TextEditingController();
   final _registerEmailController = TextEditingController();
   final _registerPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _otherRoleController = TextEditingController();
-
   final _forgotPasswordEmailController = TextEditingController();
-
   _AuthMode _authMode = _AuthMode.login;
-
   String? _selectedStakeholderRole;
-
   bool _obscureLoginPassword = true;
   bool _obscureRegisterPassword = true;
   bool _obscureConfirmPassword = true;
-
   static const _stakeholderRoles = <String>[
     'Farmer',
     'Fiber Processor',
@@ -50,11 +43,9 @@ class _LoginScreenState extends State<LoginScreen> {
     'Agricultural Researcher',
     'Others',
   ];
-
   @override
   void initState() {
     super.initState();
-
     _authMode = widget.startInRegisterMode
         ? _AuthMode.register
         : _AuthMode.login;
@@ -63,59 +54,65 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void dispose() {
     _loginEmailController.dispose();
+    _loginPasswordFocusNode.dispose();
     _loginPasswordController.dispose();
-
     _fullNameController.dispose();
     _registerEmailController.dispose();
     _registerPasswordController.dispose();
     _confirmPasswordController.dispose();
     _otherRoleController.dispose();
-
     _forgotPasswordEmailController.dispose();
-
     super.dispose();
   }
 
   void _switchMode(_AuthMode mode) {
     FocusScope.of(context).unfocus();
-
     final authProvider = context.read<AuthProvider>();
-
     authProvider.clearLoginError();
     authProvider.clearRegisterError();
     authProvider.clearRegistrationMessage();
-
     authProvider.clearPasswordResetFeedback(
       clearEmail: mode != _AuthMode.forgotPassword,
     );
-
     setState(() {
       _authMode = mode;
     });
   }
 
   Future<void> _submitLogin() async {
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.loginLoading || authProvider.loginLocked) {
+      return;
+    }
     FocusScope.of(context).unfocus();
-
     if (!(_loginFormKey.currentState?.validate() ?? false)) {
       return;
     }
-
-    final authProvider = context.read<AuthProvider>();
-
     final success = await authProvider.login(
       identifier: _loginEmailController.text.trim(),
       password: _loginPasswordController.text,
     );
-
     if (!mounted) {
       return;
     }
-
     if (!success) {
+      // Recreate the password input after failure to reconnect text editing.
+      setState(() => _loginPasswordRevision++);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted ||
+            _authMode != _AuthMode.login ||
+            authProvider.loginLoading ||
+            authProvider.loginLocked) {
+          return;
+        }
+        _loginPasswordFocusNode.requestFocus();
+        _loginPasswordController.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _loginPasswordController.text.length,
+        );
+      });
       return;
     }
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -125,7 +122,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
-
     if (Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
@@ -133,38 +129,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submitForgotPassword() async {
     FocusScope.of(context).unfocus();
-
     if (!(_forgotPasswordFormKey.currentState?.validate() ?? false)) {
       return;
     }
-
     final authProvider = context.read<AuthProvider>();
-
     final resetEmail = _forgotPasswordEmailController.text.trim();
-
     final success = await authProvider.forgotPassword(email: resetEmail);
-
     if (!mounted || !success) {
       return;
     }
-
     final resetCompleted = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
     );
-
     if (!mounted || resetCompleted != true) {
       return;
     }
-
     _loginEmailController.text = resetEmail;
     _forgotPasswordEmailController.clear();
-
     setState(() {
       _authMode = _AuthMode.login;
     });
-
     authProvider.clearPasswordResetFeedback(clearEmail: true);
-
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -176,21 +161,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submitRegister() async {
     FocusScope.of(context).unfocus();
-
     if (!(_registerFormKey.currentState?.validate() ?? false)) {
       return;
     }
-
     final stakeholderRole = _convertStakeholderRole(_selectedStakeholderRole);
-
     if (stakeholderRole == null) {
       return;
     }
-
     final authProvider = context.read<AuthProvider>();
-
     final registrationEmail = _registerEmailController.text.trim();
-
     final success = await authProvider.register(
       fullName: _fullNameController.text.trim(),
       email: registrationEmail,
@@ -200,45 +179,34 @@ class _LoginScreenState extends State<LoginScreen> {
           ? _otherRoleController.text.trim()
           : null,
     );
-
     if (!mounted) {
       return;
     }
-
     if (!success) {
       return;
     }
-
     final verified = await Navigator.of(
       context,
     ).push<bool>(MaterialPageRoute(builder: (_) => const VerifyEmailScreen()));
-
     if (!mounted) {
       return;
     }
-
     if (verified != true) {
       return;
     }
-
     _loginEmailController.text = registrationEmail;
-
     _registerFormKey.currentState?.reset();
-
     _fullNameController.clear();
     _registerEmailController.clear();
     _registerPasswordController.clear();
     _confirmPasswordController.clear();
     _otherRoleController.clear();
-
     setState(() {
       _selectedStakeholderRole = null;
       _authMode = _AuthMode.login;
     });
-
     authProvider.clearRegisterError();
     authProvider.clearRegistrationMessage();
-
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -252,22 +220,16 @@ class _LoginScreenState extends State<LoginScreen> {
     switch (role) {
       case 'Farmer':
         return StakeholderRole.farmer;
-
       case 'Fiber Processor':
         return StakeholderRole.fiberProcessor;
-
       case 'Cooperative':
         return StakeholderRole.cooperative;
-
       case 'Buyer':
         return StakeholderRole.buyer;
-
       case 'Agricultural Researcher':
         return StakeholderRole.agriculturalResearcher;
-
       case 'Others':
         return StakeholderRole.others;
-
       default:
         return null;
     }
@@ -276,13 +238,11 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final desktop = constraints.maxWidth >= AppBreakpoints.desktop;
-
           if (desktop) {
             return _DesktopAuthLayout(
               authMode: _authMode,
@@ -291,6 +251,8 @@ class _LoginScreenState extends State<LoginScreen> {
               forgotPasswordFormKey: _forgotPasswordFormKey,
               loginEmailController: _loginEmailController,
               loginPasswordController: _loginPasswordController,
+              loginPasswordFocusNode: _loginPasswordFocusNode,
+              loginPasswordRevision: _loginPasswordRevision,
               fullNameController: _fullNameController,
               registerEmailController: _registerEmailController,
               registerPasswordController: _registerPasswordController,
@@ -328,7 +290,6 @@ class _LoginScreenState extends State<LoginScreen> {
               },
             );
           }
-
           return _MobileAuthLayout(
             authMode: _authMode,
             loginFormKey: _loginFormKey,
@@ -336,6 +297,8 @@ class _LoginScreenState extends State<LoginScreen> {
             forgotPasswordFormKey: _forgotPasswordFormKey,
             loginEmailController: _loginEmailController,
             loginPasswordController: _loginPasswordController,
+            loginPasswordFocusNode: _loginPasswordFocusNode,
+            loginPasswordRevision: _loginPasswordRevision,
             fullNameController: _fullNameController,
             registerEmailController: _registerEmailController,
             registerPasswordController: _registerPasswordController,
@@ -381,7 +344,6 @@ class _LoginScreenState extends State<LoginScreen> {
 // ============================================================
 // DESKTOP
 // ============================================================
-
 class _DesktopAuthLayout extends StatelessWidget {
   const _DesktopAuthLayout({
     required this.authMode,
@@ -390,6 +352,8 @@ class _DesktopAuthLayout extends StatelessWidget {
     required this.forgotPasswordFormKey,
     required this.loginEmailController,
     required this.loginPasswordController,
+    required this.loginPasswordFocusNode,
+    required this.loginPasswordRevision,
     required this.fullNameController,
     required this.registerEmailController,
     required this.registerPasswordController,
@@ -410,59 +374,39 @@ class _DesktopAuthLayout extends StatelessWidget {
     required this.onToggleRegisterPassword,
     required this.onToggleConfirmPassword,
   });
-
   final _AuthMode authMode;
-
   final GlobalKey<FormState> loginFormKey;
   final GlobalKey<FormState> registerFormKey;
   final GlobalKey<FormState> forgotPasswordFormKey;
-
   final TextEditingController loginEmailController;
-
   final TextEditingController loginPasswordController;
-
+  final FocusNode loginPasswordFocusNode;
+  final int loginPasswordRevision;
   final TextEditingController fullNameController;
-
   final TextEditingController registerEmailController;
-
   final TextEditingController registerPasswordController;
-
   final TextEditingController confirmPasswordController;
-
   final TextEditingController otherRoleController;
-
   final TextEditingController forgotPasswordEmailController;
-
   final String? selectedStakeholderRole;
-
   final List<String> stakeholderRoles;
-
   final bool obscureLoginPassword;
   final bool obscureRegisterPassword;
   final bool obscureConfirmPassword;
-
   final ValueChanged<_AuthMode> onModeChanged;
-
   final VoidCallback onLogin;
   final VoidCallback onRegister;
   final VoidCallback onForgotPassword;
-
   final ValueChanged<String?> onRoleChanged;
-
   final VoidCallback onToggleLoginPassword;
-
   final VoidCallback onToggleRegisterPassword;
-
   final VoidCallback onToggleConfirmPassword;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Row(
       children: [
         const Expanded(flex: 11, child: _DesktopHeroPanel()),
-
         Expanded(
           flex: 10,
           child: Container(
@@ -479,6 +423,8 @@ class _DesktopAuthLayout extends StatelessWidget {
                     forgotPasswordFormKey: forgotPasswordFormKey,
                     loginEmailController: loginEmailController,
                     loginPasswordController: loginPasswordController,
+                    loginPasswordFocusNode: loginPasswordFocusNode,
+                    loginPasswordRevision: loginPasswordRevision,
                     fullNameController: fullNameController,
                     registerEmailController: registerEmailController,
                     registerPasswordController: registerPasswordController,
@@ -513,14 +459,12 @@ class _DesktopAuthLayout extends StatelessWidget {
 
 class _DesktopHeroPanel extends StatelessWidget {
   const _DesktopHeroPanel();
-
   @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
         Image.asset('assets/images/abakascan_auth_hero.png', fit: BoxFit.cover),
-
         const DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -530,22 +474,18 @@ class _DesktopHeroPanel extends StatelessWidget {
             ),
           ),
         ),
-
         const Positioned.fill(
           child: IgnorePointer(
             child: CustomPaint(painter: _GoldFiberPainter()),
           ),
         ),
-
         Padding(
           padding: const EdgeInsets.fromLTRB(62, 56, 52, 44),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const _Brand(),
-
               const Spacer(),
-
               Text.rich(
                 TextSpan(
                   children: [
@@ -562,9 +502,7 @@ class _DesktopHeroPanel extends StatelessWidget {
                   height: 1.05,
                 ),
               ),
-
               const SizedBox(height: 22),
-
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 470),
                 child: Text(
@@ -576,13 +514,9 @@ class _DesktopHeroPanel extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 22),
-
               Container(width: 42, height: 3, color: AppColors.fiberBeige),
-
               const SizedBox(height: 48),
-
               const Row(
                 children: [
                   Expanded(
@@ -616,7 +550,6 @@ class _DesktopHeroPanel extends StatelessWidget {
 // ============================================================
 // MOBILE
 // ============================================================
-
 class _MobileAuthLayout extends StatelessWidget {
   const _MobileAuthLayout({
     required this.authMode,
@@ -625,6 +558,8 @@ class _MobileAuthLayout extends StatelessWidget {
     required this.forgotPasswordFormKey,
     required this.loginEmailController,
     required this.loginPasswordController,
+    required this.loginPasswordFocusNode,
+    required this.loginPasswordRevision,
     required this.fullNameController,
     required this.registerEmailController,
     required this.registerPasswordController,
@@ -645,51 +580,33 @@ class _MobileAuthLayout extends StatelessWidget {
     required this.onToggleRegisterPassword,
     required this.onToggleConfirmPassword,
   });
-
   final _AuthMode authMode;
-
   final GlobalKey<FormState> loginFormKey;
   final GlobalKey<FormState> registerFormKey;
   final GlobalKey<FormState> forgotPasswordFormKey;
-
   final TextEditingController loginEmailController;
-
   final TextEditingController loginPasswordController;
-
+  final FocusNode loginPasswordFocusNode;
+  final int loginPasswordRevision;
   final TextEditingController fullNameController;
-
   final TextEditingController registerEmailController;
-
   final TextEditingController registerPasswordController;
-
   final TextEditingController confirmPasswordController;
-
   final TextEditingController otherRoleController;
-
   final TextEditingController forgotPasswordEmailController;
-
   final String? selectedStakeholderRole;
-
   final List<String> stakeholderRoles;
-
   final bool obscureLoginPassword;
   final bool obscureRegisterPassword;
   final bool obscureConfirmPassword;
-
   final ValueChanged<_AuthMode> onModeChanged;
-
   final VoidCallback onLogin;
   final VoidCallback onRegister;
   final VoidCallback onForgotPassword;
-
   final ValueChanged<String?> onRoleChanged;
-
   final VoidCallback onToggleLoginPassword;
-
   final VoidCallback onToggleRegisterPassword;
-
   final VoidCallback onToggleConfirmPassword;
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -698,7 +615,6 @@ class _MobileAuthLayout extends StatelessWidget {
         child: Column(
           children: [
             const _MobileHero(),
-
             Transform.translate(
               offset: const Offset(0, -66),
               child: Padding(
@@ -710,6 +626,8 @@ class _MobileAuthLayout extends StatelessWidget {
                   forgotPasswordFormKey: forgotPasswordFormKey,
                   loginEmailController: loginEmailController,
                   loginPasswordController: loginPasswordController,
+                  loginPasswordFocusNode: loginPasswordFocusNode,
+                  loginPasswordRevision: loginPasswordRevision,
                   fullNameController: fullNameController,
                   registerEmailController: registerEmailController,
                   registerPasswordController: registerPasswordController,
@@ -742,7 +660,6 @@ class _MobileAuthLayout extends StatelessWidget {
 
 class _MobileHero extends StatelessWidget {
   const _MobileHero();
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -756,7 +673,6 @@ class _MobileHero extends StatelessWidget {
             fit: BoxFit.cover,
             alignment: Alignment.centerLeft,
           ),
-
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -770,22 +686,18 @@ class _MobileHero extends StatelessWidget {
               ),
             ),
           ),
-
           const Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(painter: _GoldFiberPainter()),
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 24, 22, 92),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _Brand(),
-
                 const SizedBox(height: 52),
-
                 Text.rich(
                   TextSpan(
                     children: [
@@ -802,9 +714,7 @@ class _MobileHero extends StatelessWidget {
                     height: 1.04,
                   ),
                 ),
-
                 const SizedBox(height: 17),
-
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 300),
                   child: Text(
@@ -815,9 +725,7 @@ class _MobileHero extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 18),
-
                 Container(width: 48, height: 3, color: AppColors.fiberBeige),
               ],
             ),
@@ -831,7 +739,6 @@ class _MobileHero extends StatelessWidget {
 // ============================================================
 // AUTH CARD
 // ============================================================
-
 class _AuthCard extends StatelessWidget {
   const _AuthCard({
     required this.authMode,
@@ -840,6 +747,8 @@ class _AuthCard extends StatelessWidget {
     required this.forgotPasswordFormKey,
     required this.loginEmailController,
     required this.loginPasswordController,
+    required this.loginPasswordFocusNode,
+    required this.loginPasswordRevision,
     required this.fullNameController,
     required this.registerEmailController,
     required this.registerPasswordController,
@@ -861,59 +770,38 @@ class _AuthCard extends StatelessWidget {
     required this.onToggleConfirmPassword,
     required this.compact,
   });
-
   final _AuthMode authMode;
-
   final GlobalKey<FormState> loginFormKey;
   final GlobalKey<FormState> registerFormKey;
-
   final GlobalKey<FormState> forgotPasswordFormKey;
-
   final TextEditingController loginEmailController;
-
   final TextEditingController loginPasswordController;
-
+  final FocusNode loginPasswordFocusNode;
+  final int loginPasswordRevision;
   final TextEditingController fullNameController;
-
   final TextEditingController registerEmailController;
-
   final TextEditingController registerPasswordController;
-
   final TextEditingController confirmPasswordController;
-
   final TextEditingController otherRoleController;
-
   final TextEditingController forgotPasswordEmailController;
-
   final String? selectedStakeholderRole;
-
   final List<String> stakeholderRoles;
-
   final bool obscureLoginPassword;
   final bool obscureRegisterPassword;
   final bool obscureConfirmPassword;
-
   final ValueChanged<_AuthMode> onModeChanged;
-
   final VoidCallback onLogin;
   final VoidCallback onRegister;
   final VoidCallback onForgotPassword;
-
   final ValueChanged<String?> onRoleChanged;
-
   final VoidCallback onToggleLoginPassword;
-
   final VoidCallback onToggleRegisterPassword;
-
   final VoidCallback onToggleConfirmPassword;
-
   final bool compact;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(compact ? 20 : 32),
@@ -946,9 +834,7 @@ class _AuthCard extends StatelessWidget {
                 label: const Text('Back to Log In'),
               ),
             ),
-
           const SizedBox(height: 30),
-
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 250),
             child: switch (authMode) {
@@ -957,6 +843,8 @@ class _AuthCard extends StatelessWidget {
                 formKey: loginFormKey,
                 emailController: loginEmailController,
                 passwordController: loginPasswordController,
+                passwordFocusNode: loginPasswordFocusNode,
+                passwordRevision: loginPasswordRevision,
                 obscurePassword: obscureLoginPassword,
                 compact: compact,
                 onTogglePassword: onToggleLoginPassword,
@@ -965,7 +853,6 @@ class _AuthCard extends StatelessWidget {
                   onModeChanged(_AuthMode.forgotPassword);
                 },
               ),
-
               _AuthMode.register => _RegisterForm(
                 key: const ValueKey('register'),
                 formKey: registerFormKey,
@@ -984,7 +871,6 @@ class _AuthCard extends StatelessWidget {
                 onToggleConfirmPassword: onToggleConfirmPassword,
                 onRegister: onRegister,
               ),
-
               _AuthMode.forgotPassword => _ForgotPasswordForm(
                 key: const ValueKey('forgot'),
                 formKey: forgotPasswordFormKey,
@@ -994,7 +880,6 @@ class _AuthCard extends StatelessWidget {
               ),
             },
           ),
-
           if (authMode == _AuthMode.login) ...[
             const SizedBox(height: 28),
             const Divider(),
@@ -1010,18 +895,13 @@ class _AuthCard extends StatelessWidget {
 // ============================================================
 // CENTERED LOGIN / REGISTER
 // ============================================================
-
 class _AuthTabs extends StatelessWidget {
   const _AuthTabs({required this.authMode, required this.onModeChanged});
-
   final _AuthMode authMode;
-
   final ValueChanged<_AuthMode> onModeChanged;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     return Container(
       width: double.infinity,
       height: 48,
@@ -1062,15 +942,12 @@ class _AuthTabButton extends StatelessWidget {
     required this.selected,
     required this.onTap,
   });
-
   final String text;
   final bool selected;
   final VoidCallback onTap;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     return Material(
       color: selected ? AppColors.primaryDark : Colors.transparent,
       borderRadius: BorderRadius.circular(10),
@@ -1095,41 +972,34 @@ class _AuthTabButton extends StatelessWidget {
 // ============================================================
 // LOGIN
 // ============================================================
-
 class _LoginForm extends StatelessWidget {
   const _LoginForm({
     super.key,
     required this.formKey,
     required this.emailController,
     required this.passwordController,
+    required this.passwordFocusNode,
+    required this.passwordRevision,
     required this.obscurePassword,
     required this.compact,
     required this.onTogglePassword,
     required this.onLogin,
     required this.onForgotPassword,
   });
-
   final GlobalKey<FormState> formKey;
-
   final TextEditingController emailController;
-
   final TextEditingController passwordController;
-
+  final FocusNode passwordFocusNode;
+  final int passwordRevision;
   final bool obscurePassword;
   final bool compact;
-
   final VoidCallback onTogglePassword;
-
   final VoidCallback onLogin;
-
   final VoidCallback onForgotPassword;
-
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-
     final colors = Theme.of(context).colorScheme;
-
     return Form(
       key: formKey,
       child: AutofillGroup(
@@ -1143,9 +1013,7 @@ class _LoginForm extends StatelessWidget {
                 fontSize: compact ? 29 : 34,
               ),
             ),
-
             const SizedBox(height: 8),
-
             Text(
               'Log in to continue to your ABAKASCAN workspace.',
               textAlign: TextAlign.center,
@@ -1153,9 +1021,7 @@ class _LoginForm extends StatelessWidget {
                 color: colors.onSurfaceVariant,
               ),
             ),
-
             const SizedBox(height: 28),
-
             TextFormField(
               controller: emailController,
               textInputAction: TextInputAction.next,
@@ -1165,23 +1031,23 @@ class _LoginForm extends StatelessWidget {
               ],
               decoration: _authDecoration(
                 context,
-                hint: 'Email or Username',
+                hint: 'Email',
                 prefix: Icons.mail_outline_rounded,
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Email or username is required.';
+                  return 'Email is required.';
                 }
-
                 return null;
               },
             ),
-
             const SizedBox(height: 15),
-
             TextFormField(
+              key: ValueKey('login-password-$passwordRevision'),
+              focusNode: passwordFocusNode,
               controller: passwordController,
-              enabled: !authProvider.loginLoading,
+              // Keep the web text input attached while a login request runs.
+              // Submission is guarded separately by the loading/lock state.
               obscureText: obscurePassword,
               textInputAction: TextInputAction.done,
               autofillHints: const [AutofillHints.password],
@@ -1207,13 +1073,10 @@ class _LoginForm extends StatelessWidget {
                 if (value == null || value.isEmpty) {
                   return 'Password is required.';
                 }
-
                 return null;
               },
             ),
-
             const SizedBox(height: 5),
-
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
@@ -1221,10 +1084,8 @@ class _LoginForm extends StatelessWidget {
                 child: const Text('Forgot Password?'),
               ),
             ),
-
             if (authProvider.loginLocked) ...[
               const SizedBox(height: 8),
-
               _MessageBox(
                 text:
                     'Account temporarily locked after 5 failed login attempts. '
@@ -1235,17 +1096,13 @@ class _LoginForm extends StatelessWidget {
               ),
             ] else if (authProvider.loginError != null) ...[
               const SizedBox(height: 8),
-
               _MessageBox(text: authProvider.loginError!, error: true),
             ],
-
             if (authProvider.sessionMessage != null) ...[
               const SizedBox(height: 8),
               _MessageBox(text: authProvider.sessionMessage!, error: true),
             ],
-
             const SizedBox(height: 16),
-
             _AuthButton(
               label: authProvider.loginLocked
                   ? 'Locked (${authProvider.loginLockSecondsRemaining}s)'
@@ -1265,7 +1122,6 @@ class _LoginForm extends StatelessWidget {
 // ============================================================
 // REGISTER
 // ============================================================
-
 class _RegisterForm extends StatelessWidget {
   const _RegisterForm({
     super.key,
@@ -1285,42 +1141,25 @@ class _RegisterForm extends StatelessWidget {
     required this.onToggleConfirmPassword,
     required this.onRegister,
   });
-
   final GlobalKey<FormState> formKey;
-
   final TextEditingController fullNameController;
-
   final TextEditingController emailController;
-
   final TextEditingController passwordController;
-
   final TextEditingController confirmPasswordController;
-
   final TextEditingController otherRoleController;
-
   final String? selectedStakeholderRole;
-
   final List<String> stakeholderRoles;
-
   final bool obscurePassword;
   final bool obscureConfirmPassword;
-
   final bool compact;
-
   final ValueChanged<String?> onRoleChanged;
-
   final VoidCallback onTogglePassword;
-
   final VoidCallback onToggleConfirmPassword;
-
   final VoidCallback onRegister;
-
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-
     final colors = Theme.of(context).colorScheme;
-
     return Form(
       key: formKey,
       child: Column(
@@ -1332,9 +1171,7 @@ class _RegisterForm extends StatelessWidget {
               fontSize: compact ? 28 : 33,
             ),
           ),
-
           const SizedBox(height: 8),
-
           Text(
             'Create your ABAKASCAN workspace.',
             textAlign: TextAlign.center,
@@ -1342,9 +1179,7 @@ class _RegisterForm extends StatelessWidget {
               color: colors.onSurfaceVariant,
             ),
           ),
-
           const SizedBox(height: 25),
-
           TextFormField(
             controller: fullNameController,
             enabled: !authProvider.registerLoading,
@@ -1358,13 +1193,10 @@ class _RegisterForm extends StatelessWidget {
               if (value == null || value.trim().isEmpty) {
                 return 'Full name is required.';
               }
-
               return null;
             },
           ),
-
           const SizedBox(height: 13),
-
           TextFormField(
             controller: emailController,
             enabled: !authProvider.registerLoading,
@@ -1377,21 +1209,16 @@ class _RegisterForm extends StatelessWidget {
             ),
             validator: (value) {
               final email = value?.trim() ?? '';
-
               if (email.isEmpty) {
                 return 'Email is required.';
               }
-
               if (!email.contains('@')) {
                 return 'Enter a valid email address.';
               }
-
               return null;
             },
           ),
-
           const SizedBox(height: 13),
-
           DropdownButtonFormField<String>(
             initialValue: selectedStakeholderRole,
             isExpanded: true,
@@ -1411,14 +1238,11 @@ class _RegisterForm extends StatelessWidget {
               if (value == null || value.isEmpty) {
                 return 'Please select your role.';
               }
-
               return null;
             },
           ),
-
           if (selectedStakeholderRole == 'Others') ...[
             const SizedBox(height: 13),
-
             TextFormField(
               controller: otherRoleController,
               enabled: !authProvider.registerLoading,
@@ -1431,14 +1255,11 @@ class _RegisterForm extends StatelessWidget {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please specify your role.';
                 }
-
                 return null;
               },
             ),
           ],
-
           const SizedBox(height: 13),
-
           TextFormField(
             controller: passwordController,
             obscureText: obscurePassword,
@@ -1461,26 +1282,20 @@ class _RegisterForm extends StatelessWidget {
               if (value == null || value.isEmpty) {
                 return 'Password is required.';
               }
-
               if (value.length < 8) {
                 return 'Use at least 8 characters.';
               }
-
               return null;
             },
           ),
-
           const SizedBox(height: 10),
-
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: passwordController,
             builder: (context, value, child) {
               return _PasswordStrengthIndicator(password: value.text);
             },
           ),
-
           const SizedBox(height: 13),
-
           TextFormField(
             controller: confirmPasswordController,
             enabled: !authProvider.registerLoading,
@@ -1502,23 +1317,17 @@ class _RegisterForm extends StatelessWidget {
               if (value == null || value.isEmpty) {
                 return 'Please confirm your password.';
               }
-
               if (value != passwordController.text) {
                 return 'Passwords do not match.';
               }
-
               return null;
             },
           ),
-
           if (authProvider.registerError != null) ...[
             const SizedBox(height: 13),
-
             _MessageBox(text: authProvider.registerError!, error: true),
           ],
-
           const SizedBox(height: 20),
-
           _AuthButton(
             label: 'Create Account',
             loading: authProvider.registerLoading,
@@ -1534,57 +1343,41 @@ enum _PasswordStrength { weak, fair, good, strong }
 
 class _PasswordStrengthIndicator extends StatelessWidget {
   const _PasswordStrengthIndicator({required this.password});
-
   final String password;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     if (password.isEmpty) {
       return const SizedBox.shrink();
     }
-
     final strength = _calculatePasswordStrength(password);
-
     final score = _passwordStrengthScore(strength);
-
     final Color strengthColor;
     final String strengthLabel;
-
     switch (strength) {
       case _PasswordStrength.weak:
         strengthColor = colors.error;
         strengthLabel = 'Weak';
         break;
-
       case _PasswordStrength.fair:
         strengthColor = Colors.orange;
         strengthLabel = 'Fair';
         break;
-
       case _PasswordStrength.good:
         strengthColor = colors.secondary;
         strengthLabel = 'Good';
         break;
-
       case _PasswordStrength.strong:
         strengthColor = colors.primary;
         strengthLabel = 'Strong';
         break;
     }
-
     final hasMinimumLength = password.length >= 8;
-
     final hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
-
     final hasLowercase = RegExp(r'[a-z]').hasMatch(password);
-
     final hasNumber = RegExp(r'[0-9]').hasMatch(password);
-
     final hasSpecialCharacter = RegExp(r'[!@#$%^&*(),.?":{}|<>_+=-]')
         .hasMatch(password);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1594,7 +1387,6 @@ class _PasswordStrengthIndicator extends StatelessWidget {
               child: Row(
                 children: List.generate(4, (index) {
                   final active = index < score;
-
                   return Expanded(
                     child: Container(
                       height: 5,
@@ -1608,9 +1400,7 @@ class _PasswordStrengthIndicator extends StatelessWidget {
                 }),
               ),
             ),
-
             const SizedBox(width: 12),
-
             Text(
               strengthLabel,
               style: AppTypography.caption.copyWith(
@@ -1620,27 +1410,19 @@ class _PasswordStrengthIndicator extends StatelessWidget {
             ),
           ],
         ),
-
         const SizedBox(height: 10),
-
         _PasswordRequirement(
           met: hasMinimumLength,
           text: 'At least 8 characters',
         ),
-
         const SizedBox(height: 4),
-
         _PasswordRequirement(
           met: hasUppercase && hasLowercase,
           text: 'Uppercase and lowercase letters',
         ),
-
         const SizedBox(height: 4),
-
         _PasswordRequirement(met: hasNumber, text: 'At least one number'),
-
         const SizedBox(height: 4),
-
         _PasswordRequirement(
           met: hasSpecialCharacter,
           text: 'At least one special character',
@@ -1652,14 +1434,11 @@ class _PasswordStrengthIndicator extends StatelessWidget {
 
 class _PasswordRequirement extends StatelessWidget {
   const _PasswordRequirement({required this.met, required this.text});
-
   final bool met;
   final String text;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     return Row(
       children: [
         Icon(
@@ -1669,9 +1448,7 @@ class _PasswordRequirement extends StatelessWidget {
           size: 15,
           color: met ? colors.primary : colors.onSurfaceVariant,
         ),
-
         const SizedBox(width: 7),
-
         Text(
           text,
           style: AppTypography.caption.copyWith(
@@ -1685,34 +1462,26 @@ class _PasswordRequirement extends StatelessWidget {
 
 _PasswordStrength _calculatePasswordStrength(String password) {
   var score = 0;
-
   if (password.length >= 8) {
     score++;
   }
-
   if (RegExp(r'[A-Z]').hasMatch(password) &&
       RegExp(r'[a-z]').hasMatch(password)) {
     score++;
   }
-
   if (RegExp(r'[0-9]').hasMatch(password)) {
     score++;
   }
-
   if (RegExp(r'[!@#$%^&*(),.?":{}|<>_+=-]').hasMatch(password)) {
     score++;
   }
-
   switch (score) {
     case 4:
       return _PasswordStrength.strong;
-
     case 3:
       return _PasswordStrength.good;
-
     case 2:
       return _PasswordStrength.fair;
-
     default:
       return _PasswordStrength.weak;
   }
@@ -1722,13 +1491,10 @@ int _passwordStrengthScore(_PasswordStrength strength) {
   switch (strength) {
     case _PasswordStrength.weak:
       return 1;
-
     case _PasswordStrength.fair:
       return 2;
-
     case _PasswordStrength.good:
       return 3;
-
     case _PasswordStrength.strong:
       return 4;
   }
@@ -1737,7 +1503,6 @@ int _passwordStrengthScore(_PasswordStrength strength) {
 // ============================================================
 // FORGOT PASSWORD
 // ============================================================
-
 class _ForgotPasswordForm extends StatelessWidget {
   const _ForgotPasswordForm({
     super.key,
@@ -1746,21 +1511,14 @@ class _ForgotPasswordForm extends StatelessWidget {
     required this.compact,
     required this.onSubmit,
   });
-
   final GlobalKey<FormState> formKey;
-
   final TextEditingController emailController;
-
   final bool compact;
-
   final VoidCallback onSubmit;
-
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-
     final colors = Theme.of(context).colorScheme;
-
     return Form(
       key: formKey,
       child: Column(
@@ -1778,9 +1536,7 @@ class _ForgotPasswordForm extends StatelessWidget {
               size: 30,
             ),
           ),
-
           const SizedBox(height: 17),
-
           Text(
             'Forgot password?',
             style: AppTypography.pageTitle.copyWith(
@@ -1788,9 +1544,7 @@ class _ForgotPasswordForm extends StatelessWidget {
               fontSize: compact ? 27 : 32,
             ),
           ),
-
           const SizedBox(height: 8),
-
           Text(
             'Enter the email address associated with your ABAKASCAN account.',
             textAlign: TextAlign.center,
@@ -1798,9 +1552,7 @@ class _ForgotPasswordForm extends StatelessWidget {
               color: colors.onSurfaceVariant,
             ),
           ),
-
           const SizedBox(height: 26),
-
           TextFormField(
             controller: emailController,
             enabled: !authProvider.forgotPasswordLoading,
@@ -1812,29 +1564,21 @@ class _ForgotPasswordForm extends StatelessWidget {
             ),
             validator: (value) {
               final email = value?.trim() ?? '';
-
               if (email.isEmpty) {
                 return 'Email address is required.';
               }
-
               if (!email.contains('@')) {
                 return 'Enter a valid email address.';
               }
-
               return null;
             },
           ),
-
           const SizedBox(height: 20),
-
           if (authProvider.passwordResetError != null) ...[
             const SizedBox(height: 14),
-
             _MessageBox(text: authProvider.passwordResetError!, error: true),
           ],
-
           const SizedBox(height: 20),
-
           _AuthButton(
             label: 'Send Reset Code',
             loading: authProvider.forgotPasswordLoading,
@@ -1849,18 +1593,15 @@ class _ForgotPasswordForm extends StatelessWidget {
 // ============================================================
 // SHARED AUTH WIDGETS
 // ============================================================
-
 class _AuthButton extends StatelessWidget {
   const _AuthButton({
     required this.label,
     required this.loading,
     required this.onPressed,
   });
-
   final String label;
   final bool loading;
   final VoidCallback? onPressed;
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -1899,11 +1640,9 @@ class _AuthButton extends StatelessWidget {
 
 class _SecurityNote extends StatelessWidget {
   const _SecurityNote();
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1920,9 +1659,7 @@ class _SecurityNote extends StatelessWidget {
             size: 19,
           ),
         ),
-
         const SizedBox(width: 12),
-
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1933,9 +1670,7 @@ class _SecurityNote extends StatelessWidget {
                   color: colors.onSurface,
                 ),
               ),
-
               const SizedBox(height: 3),
-
               Text(
                 'Sign in to access your ABAKASCAN workspace and saved analyses.',
                 style: AppTypography.caption.copyWith(
@@ -1952,16 +1687,12 @@ class _SecurityNote extends StatelessWidget {
 
 class _MessageBox extends StatelessWidget {
   const _MessageBox({required this.text, required this.error});
-
   final String text;
   final bool error;
-
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-
     final color = error ? colors.error : colors.primary;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(11),
@@ -1977,10 +1708,8 @@ class _MessageBox extends StatelessWidget {
 
 class _HeroFeature extends StatelessWidget {
   const _HeroFeature({required this.icon, required this.title});
-
   final IconData icon;
   final String title;
-
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -1994,9 +1723,7 @@ class _HeroFeature extends StatelessWidget {
           ),
           child: Icon(icon, color: AppColors.fiberBeige, size: 21),
         ),
-
         const SizedBox(width: 10),
-
         Text(
           title,
           style: AppTypography.label.copyWith(
@@ -2014,19 +1741,15 @@ class _HeroFeature extends StatelessWidget {
 // ============================================================
 // BRAND
 // ============================================================
-
 class _Brand extends StatelessWidget {
   const _Brand();
-
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         const Icon(Icons.eco_outlined, size: 28, color: AppColors.fiberBeige),
-
         const SizedBox(width: 10),
-
         Text(
           'ABAKASCAN',
           style: AppTypography.label.copyWith(
@@ -2044,7 +1767,6 @@ class _Brand extends StatelessWidget {
 // ============================================================
 // INPUT STYLE
 // ============================================================
-
 InputDecoration _authDecoration(
   BuildContext context, {
   required String hint,
@@ -2052,12 +1774,10 @@ InputDecoration _authDecoration(
   Widget? suffix,
 }) {
   final colors = Theme.of(context).colorScheme;
-
   final border = OutlineInputBorder(
     borderRadius: BorderRadius.circular(11),
     borderSide: BorderSide(color: colors.outlineVariant),
   );
-
   return InputDecoration(
     hintText: hint,
     prefixIcon: Icon(prefix),
@@ -2085,10 +1805,8 @@ InputDecoration _authDecoration(
 // ============================================================
 // GOLD FIBER LINES
 // ============================================================
-
 class _GoldFiberPainter extends CustomPainter {
   const _GoldFiberPainter();
-
   @override
   void paint(Canvas canvas, Size size) {
     for (var index = 0; index < 11; index++) {
@@ -2096,9 +1814,7 @@ class _GoldFiberPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = index % 3 == 0 ? 1.15 : 0.7
         ..color = AppColors.fiberBeige.withValues(alpha: 0.33);
-
       final y = size.height * (0.32 + index * 0.018);
-
       final path = Path()
         ..moveTo(-20, y)
         ..cubicTo(
@@ -2109,7 +1825,6 @@ class _GoldFiberPainter extends CustomPainter {
           size.width + 30,
           y + size.height * 0.04,
         );
-
       canvas.drawPath(path, paint);
     }
   }

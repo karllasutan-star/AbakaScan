@@ -14,7 +14,6 @@ extension AccountRoleExtension on AccountRole {
     switch (this) {
       case AccountRole.user:
         return 'USER';
-
       case AccountRole.admin:
         return 'ADMIN';
     }
@@ -24,7 +23,6 @@ extension AccountRoleExtension on AccountRole {
     switch (this) {
       case AccountRole.user:
         return 'User';
-
       case AccountRole.admin:
         return 'Administrator';
     }
@@ -44,19 +42,14 @@ extension StakeholderRoleExtension on StakeholderRole {
     switch (this) {
       case StakeholderRole.farmer:
         return 'Farmer';
-
       case StakeholderRole.fiberProcessor:
         return 'Fiber Processor';
-
       case StakeholderRole.cooperative:
         return 'Cooperative';
-
       case StakeholderRole.buyer:
         return 'Buyer';
-
       case StakeholderRole.agriculturalResearcher:
         return 'Agricultural Researcher';
-
       case StakeholderRole.others:
         return 'Others';
     }
@@ -66,19 +59,14 @@ extension StakeholderRoleExtension on StakeholderRole {
     switch (this) {
       case StakeholderRole.farmer:
         return 'FARMER';
-
       case StakeholderRole.fiberProcessor:
         return 'FIBER_PROCESSOR';
-
       case StakeholderRole.cooperative:
         return 'COOPERATIVE';
-
       case StakeholderRole.buyer:
         return 'BUYER';
-
       case StakeholderRole.agriculturalResearcher:
         return 'AGRICULTURAL_RESEARCHER';
-
       case StakeholderRole.others:
         return 'OTHERS';
     }
@@ -88,22 +76,16 @@ extension StakeholderRoleExtension on StakeholderRole {
     switch (value?.toUpperCase()) {
       case 'FARMER':
         return StakeholderRole.farmer;
-
       case 'FIBER_PROCESSOR':
         return StakeholderRole.fiberProcessor;
-
       case 'COOPERATIVE':
         return StakeholderRole.cooperative;
-
       case 'BUYER':
         return StakeholderRole.buyer;
-
       case 'AGRICULTURAL_RESEARCHER':
         return StakeholderRole.agriculturalResearcher;
-
       case 'OTHERS':
         return StakeholderRole.others;
-
       default:
         return null;
     }
@@ -357,33 +339,43 @@ class AuthResult {
   }
 }
 
-/// Represents the result returned by the machine-learning
-/// classification endpoint.
-///
-/// This does not describe an official or certified fiber grade.
-/// It only stores the preliminary prediction produced by
-/// ABAKASCAN.
+// ============================================================
+// CLASSIFICATION RESULT
+// ============================================================
+
+/// Stores a preliminary model prediction, not an official fiber grade.
 class ClassificationResultModel {
   const ClassificationResultModel({
     required this.predictedGrade,
     required this.confidence,
+    this.gradeScores,
     this.classificationId,
     this.createdAt,
     this.imageUrl,
     this.savedToHistory = true,
     this.modelName,
+    this.detectionStatus = 'graded',
+    this.detectionMessage,
   });
 
   final String predictedGrade;
 
-  /// Confidence is stored internally as a value from 0.0 to 1.0.
+  /// Highest grade model score, stored from 0.0 to 1.0.
   final double confidence;
+
+  /// Raw JK, S-I, and S-S2 scores, each from 0.0 to 1.0.
+  /// Null when the complete distribution is unavailable.
+  final Map<String, double>? gradeScores;
 
   final String? classificationId;
   final DateTime? createdAt;
   final String? imageUrl;
   final bool savedToHistory;
   final String? modelName;
+
+  /// For non-graded outcomes, the UI must display confidence as N/A.
+  final String detectionStatus;
+  final String? detectionMessage;
 
   double get confidencePercentage {
     return confidence * 100;
@@ -404,11 +396,14 @@ class ClassificationResultModel {
     return ClassificationResultModel(
       classificationId: rawId?.toString(),
       predictedGrade: rawGrade?.toString() ?? '',
-      confidence: normalizedConfidence.clamp(0.0, 1.0),
+      confidence: normalizedConfidence.clamp(0.0, 1.0).toDouble(),
+      gradeScores: _parseGradeScores(json['grade_scores']),
       createdAt: _parseDateTime(json['created_at']),
       imageUrl: json['image_url']?.toString(),
       savedToHistory: _parseBool(json['saved_to_history'], fallback: true),
       modelName: json['model_name']?.toString(),
+      detectionStatus: json['detection_status']?.toString() ?? 'graded',
+      detectionMessage: json['detection_message']?.toString(),
     );
   }
 
@@ -417,22 +412,28 @@ class ClassificationResultModel {
       'classification_id': classificationId,
       'predicted_grade': predictedGrade,
       'confidence': confidence,
+      'grade_scores': gradeScores,
       'created_at': createdAt?.toIso8601String(),
       'image_url': imageUrl,
       'saved_to_history': savedToHistory,
       'model_name': modelName,
+      'detection_status': detectionStatus,
+      'detection_message': detectionMessage,
     };
   }
 }
 
-/// Represents one previously saved classification shown
-/// in the user's History page.
+// ============================================================
+// CLASSIFICATION HISTORY RECORD
+// ============================================================
+
 class ClassificationRecordModel {
   const ClassificationRecordModel({
     required this.id,
     required this.predictedGrade,
     required this.confidence,
     required this.createdAt,
+    this.gradeScores,
     this.imageUrl,
     this.modelName,
   });
@@ -441,6 +442,7 @@ class ClassificationRecordModel {
   final String predictedGrade;
   final double confidence;
   final DateTime createdAt;
+  final Map<String, double>? gradeScores;
   final String? imageUrl;
   final String? modelName;
 
@@ -461,7 +463,8 @@ class ClassificationRecordModel {
     return ClassificationRecordModel(
       id: (json['classification_id'] ?? json['id'] ?? '').toString(),
       predictedGrade: rawGrade?.toString() ?? '',
-      confidence: normalizedConfidence.clamp(0.0, 1.0),
+      confidence: normalizedConfidence.clamp(0.0, 1.0).toDouble(),
+      gradeScores: _parseGradeScores(json['grade_scores']),
       createdAt:
           _parseDateTime(json['created_at']) ??
           DateTime.fromMillisecondsSinceEpoch(0),
@@ -469,6 +472,50 @@ class ClassificationRecordModel {
       modelName: json['model_name']?.toString(),
     );
   }
+}
+
+// ============================================================
+// PARSING HELPERS
+// ============================================================
+
+/// Reads the backend's complete 0..1 distribution without rounding,
+/// rescaling, or creating values for missing grades.
+Map<String, double>? _parseGradeScores(dynamic value) {
+  if (value is! Map) {
+    return null;
+  }
+
+  const grades = ['JK', 'S-I', 'S-S2'];
+
+  if (value.length != grades.length) {
+    return null;
+  }
+
+  final scores = <String, double>{};
+  var total = 0.0;
+
+  for (final grade in grades) {
+    final rawScore = value[grade];
+
+    final double? score = rawScore is num
+        ? rawScore.toDouble()
+        : rawScore is String
+        ? double.tryParse(rawScore)
+        : null;
+
+    if (score == null || !score.isFinite || score < 0.0 || score > 1.0) {
+      return null;
+    }
+
+    scores[grade] = score;
+    total += score;
+  }
+
+  if ((total - 1.0).abs() > 0.0001) {
+    return null;
+  }
+
+  return Map<String, double>.unmodifiable(scores);
 }
 
 int _parseInt(dynamic value) {

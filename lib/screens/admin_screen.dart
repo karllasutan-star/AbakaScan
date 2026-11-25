@@ -5,7 +5,7 @@ import '../app/theme.dart';
 import '../models/admin_models.dart';
 import '../providers/app_providers.dart';
 
-enum _AdminSection { overview, accounts, classifications }
+enum _AdminSection { overview, accounts, classifications, analytics }
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -22,6 +22,7 @@ class _AdminScreenState extends State<AdminScreen> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _loadAdminData();
     });
   }
@@ -66,6 +67,7 @@ class _AdminScreenState extends State<AdminScreen> {
         break;
 
       case _AdminSection.classifications:
+      case _AdminSection.analytics:
         await adminProvider.loadClassifications(token: token);
         break;
     }
@@ -134,11 +136,11 @@ class _AdminScreenState extends State<AdminScreen> {
       return;
     }
 
+    // Startup loads all sections. Switching tabs uses those results;
+    // the existing Refresh and Retry controls still request fresh data.
     setState(() {
       _selectedSection = section;
     });
-
-    _refreshCurrentSection();
   }
 
   Future<void> _openCreateAdmin() async {
@@ -235,14 +237,46 @@ class _AdminScreenState extends State<AdminScreen> {
             backgroundColor: backgroundColor,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
-            title: const _Brand(darkText: true),
-            actions: [
-              IconButton(
-                tooltip: 'Refresh',
-                onPressed: _refreshCurrentSection,
-                icon: const Icon(Icons.refresh_rounded),
-              ),
-            ],
+            automaticallyImplyLeading: false,
+            titleSpacing: 0,
+            toolbarHeight: 56,
+            title: LayoutBuilder(
+              builder: (toolbarContext, constraints) {
+                if (constraints.maxWidth < 96) {
+                  return const SizedBox.shrink();
+                }
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: 48,
+                      child: IconButton(
+                        tooltip: 'Open navigation menu',
+                        onPressed: () =>
+                            Scaffold.of(toolbarContext).openDrawer(),
+                        icon: const Icon(Icons.menu_rounded),
+                      ),
+                    ),
+                    const Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: _Brand(darkText: true),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 48,
+                      child: IconButton(
+                        tooltip: 'Refresh',
+                        onPressed: _refreshCurrentSection,
+                        icon: const Icon(Icons.refresh_rounded),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
           drawer: _AdminDrawer(
             selectedSection: _selectedSection,
@@ -290,52 +324,67 @@ class _AdminBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: onRefreshCurrent,
-      child: SingleChildScrollView(
+      child: CustomScrollView(
+        key: PageStorageKey('admin-${selectedSection.name}'),
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(
-          compact ? 16 : 28,
-          compact ? 14 : 26,
-          compact ? 16 : 28,
-          40,
-        ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1220),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _AdminHeader(
-                  adminName: adminName,
-                  selectedSection: selectedSection,
-                  onRefresh: onRefreshCurrent,
-                  compact: compact,
+        slivers: [
+          SliverLayoutBuilder(
+            builder: (context, constraints) {
+              final basePadding = compact ? 16.0 : 28.0;
+              final available = constraints.crossAxisExtent - basePadding * 2;
+              final extra = available > 1220 ? (available - 1220) / 2 : 0.0;
+              return SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  basePadding + extra,
+                  compact ? 14 : 26,
+                  basePadding + extra,
+                  40,
                 ),
-
-                const SizedBox(height: 20),
-
-                switch (selectedSection) {
-                  _AdminSection.overview => _OverviewSection(
-                    onRefresh: onRefreshAll,
-                    onCreateAdmin: onCreateAdmin,
-                  ),
-
-                  _AdminSection.accounts => _AccountsSection(
-                    onRefresh: onRefreshCurrent,
-                    onCreateAdmin: onCreateAdmin,
-                  ),
-
-                  _AdminSection.classifications => _ClassificationsSection(
-                    onRefresh: onRefreshCurrent,
-                  ),
-                },
-
-                const SizedBox(height: 20),
-
-                const _AdminAccessNotice(),
-              ],
-            ),
+                sliver: SliverMainAxisGroup(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _AdminHeader(
+                            adminName: adminName,
+                            selectedSection: selectedSection,
+                            onRefresh: onRefreshCurrent,
+                            compact: compact,
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+                    switch (selectedSection) {
+                      _AdminSection.overview => SliverToBoxAdapter(
+                        child: _OverviewSection(
+                          onRefresh: onRefreshAll,
+                          onCreateAdmin: onCreateAdmin,
+                        ),
+                      ),
+                      _AdminSection.accounts => _AccountsSection(
+                        onRefresh: onRefreshCurrent,
+                        onCreateAdmin: onCreateAdmin,
+                      ),
+                      _AdminSection.classifications => _ClassificationsSection(
+                        onRefresh: onRefreshCurrent,
+                      ),
+                      _AdminSection.analytics => SliverToBoxAdapter(
+                        child: _AnalyticsSection(onRefresh: onRefreshCurrent),
+                      ),
+                    },
+                    const SliverToBoxAdapter(
+                      child: Column(
+                        children: [SizedBox(height: 20), _AdminAccessNotice()],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
-        ),
+        ],
       ),
     );
   }
@@ -366,6 +415,7 @@ class _AdminHeader extends StatelessWidget {
       _AdminSection.overview => 'Administrator Dashboard',
       _AdminSection.accounts => 'Account Management',
       _AdminSection.classifications => 'Classification Records',
+      _AdminSection.analytics => 'Classification Analytics',
     };
 
     final description = switch (selectedSection) {
@@ -374,6 +424,8 @@ class _AdminHeader extends StatelessWidget {
       _AdminSection.accounts => 'Review registered accounts and create authorized administrator accounts.',
       _AdminSection.classifications =>
         'Review classification records created across user accounts.',
+      _AdminSection.analytics =>
+        'Review saved classification activity across user accounts.',
     };
 
     final heading = Column(
@@ -687,29 +739,21 @@ class _OverviewCards extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 650) {
-          return GridView.builder(
-            itemCount: cards.length,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              mainAxisExtent: 130,
-            ),
-            itemBuilder: (context, index) {
-              return _MetricCard(data: cards[index]);
-            },
-          );
-        }
-
-        return Row(
+        final columns = constraints.maxWidth < 320
+            ? 1
+            : constraints.maxWidth < 650
+            ? 2
+            : 4;
+        final width = (constraints.maxWidth - 12 * (columns - 1)) / columns;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
           children: [
-            for (var index = 0; index < cards.length; index++) ...[
-              Expanded(child: _MetricCard(data: cards[index])),
-              if (index < cards.length - 1) const SizedBox(width: 12),
-            ],
+            for (final card in cards)
+              SizedBox(
+                width: width,
+                child: _MetricCard(data: card),
+              ),
           ],
         );
       },
@@ -746,6 +790,7 @@ class _MetricCard extends StatelessWidget {
         border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
@@ -783,6 +828,234 @@ class _MetricCard extends StatelessWidget {
 }
 
 // ============================================================
+// ANALYTICS
+// ============================================================
+
+class _AnalyticsSection extends StatelessWidget {
+  const _AnalyticsSection({required this.onRefresh});
+
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final admin = context.watch<AdminProvider>();
+    final records = admin.classificationRecords;
+    final colors = Theme.of(context).colorScheme;
+
+    if (admin.classificationsLoading && records.isEmpty) {
+      return const _AdminLoadingState(
+        message: 'Loading classification analytics...',
+      );
+    }
+    if (admin.classificationsError != null && records.isEmpty) {
+      return _AdminErrorState(
+        title: 'Unable to load analytics',
+        message: admin.classificationsError!,
+        onRetry: onRefresh,
+      );
+    }
+    if (records.isEmpty) {
+      return const _AdminEmptyState(
+        icon: Icons.insights_outlined,
+        title: 'No classification analytics yet',
+        description: 'Analytics will appear when users save classifications.',
+      );
+    }
+
+    // All figures use the records returned by the existing admin endpoint.
+    // These scores do not measure grading accuracy.
+    final counts = <String, int>{'JK': 0, 'S-I': 0, 'S-S2': 0};
+    final scores = <double>[];
+    final now = DateTime.now();
+    var thisMonth = 0;
+    for (final record in records) {
+      final label = record.predictedGrade.trim();
+      final grade = label.isEmpty ? 'Unspecified' : label;
+      counts[grade] = (counts[grade] ?? 0) + 1;
+      final score = record.confidence;
+      if (score.isFinite && score >= 0 && score <= 1) scores.add(score);
+      final date = record.createdAt.toLocal();
+      if (date.year == now.year && date.month == now.month) thisMonth++;
+    }
+    final average = scores.isEmpty
+        ? null
+        : scores.reduce((sum, value) => sum + value) / scores.length;
+    final maximumCount = counts.values.reduce((a, b) => a > b ? a : b);
+    final commonGrades = counts.entries
+        .where((entry) => entry.value == maximumCount)
+        .map((entry) => entry.key)
+        .toList();
+    final commonGrade = commonGrades.length == 1 ? commonGrades.first : 'Tie';
+    final orderedGrades = [
+      'JK',
+      'S-I',
+      'S-S2',
+      ...(counts.keys
+          .where((grade) => grade != 'JK' && grade != 'S-I' && grade != 'S-S2')
+          .toList()
+        ..sort()),
+    ];
+    final metrics = [
+      _MetricData(
+        icon: Icons.analytics_outlined,
+        label: 'Saved Analyses',
+        value: records.length.toString(),
+      ),
+      _MetricData(
+        icon: Icons.insights_outlined,
+        label: 'Average Model Score',
+        value: average == null ? '—' : '${(average * 100).toStringAsFixed(1)}%',
+      ),
+      _MetricData(
+        icon: Icons.workspace_premium_outlined,
+        label: 'Most Common Grade',
+        value: commonGrade,
+      ),
+      _MetricData(
+        icon: Icons.calendar_today_outlined,
+        label: 'Saved This Month',
+        value: thisMonth.toString(),
+      ),
+    ];
+    final highest = scores.isEmpty
+        ? null
+        : scores.reduce((a, b) => a > b ? a : b);
+    final lowest = scores.isEmpty
+        ? null
+        : scores.reduce((a, b) => a < b ? a : b);
+    String formatScore(double? value) =>
+        value == null ? '—' : '${(value * 100).toStringAsFixed(1)}%';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (admin.classificationsError != null) ...[
+          _AdminInlineError(
+            message: admin.classificationsError!,
+            onClose: () =>
+                context.read<AdminProvider>().clearClassificationsError(),
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (admin.classificationsLoading)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 16),
+            child: LinearProgressIndicator(),
+          ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth < 320
+                ? 1
+                : constraints.maxWidth < 780
+                ? 2
+                : 4;
+            final width = (constraints.maxWidth - 12 * (columns - 1)) / columns;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final metric in metrics)
+                  SizedBox(
+                    width: width,
+                    child: _MetricCard(data: metric),
+                  ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 18),
+        _SectionCard(
+          title: 'Grade Distribution',
+          subtitle: 'Counts of saved classifications in the loaded records.',
+          child: Column(
+            children: [
+              for (var index = 0; index < orderedGrades.length; index++)
+                Padding(
+                  padding: EdgeInsets.only(
+                    bottom: index == orderedGrades.length - 1 ? 0 : 18,
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              orderedGrades[index],
+                              style: AppTypography.body.copyWith(
+                                color: colors.onSurface,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${counts[orderedGrades[index]]}  •  '
+                            '${(counts[orderedGrades[index]]! / records.length * 100).toStringAsFixed(1)}%',
+                            style: AppTypography.caption.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: counts[orderedGrades[index]]! / records.length,
+                          minHeight: 8,
+                          backgroundColor: colors.surfaceContainerHighest,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            colors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _SectionCard(
+          title: 'Model Score Summary',
+          subtitle: 'Top grade scores stored with saved analyses.',
+          child: Column(
+            children: [
+              for (final entry in <String, String>{
+                'Highest Model Score': formatScore(highest),
+                'Average Model Score': formatScore(average),
+                'Lowest Model Score': formatScore(lowest),
+              }.entries)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          entry.key,
+                          style: AppTypography.body.copyWith(
+                            color: colors.onSurface,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        entry.value,
+                        style: AppTypography.cardTitle.copyWith(
+                          color: colors.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+      ],
+    );
+  }
+}
+
+// ============================================================
 // ACCOUNTS
 // ============================================================
 
@@ -798,8 +1071,9 @@ class _AccountsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final admin = context.watch<AdminProvider>();
+    final users = admin.users;
 
-    return Column(
+    final header = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionHeading(
@@ -818,15 +1092,15 @@ class _AccountsSection extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        if (admin.usersLoading && admin.users.isEmpty)
+        if (admin.usersLoading && users.isEmpty)
           const _AdminLoadingState(message: 'Loading accounts...')
-        else if (admin.usersError != null && admin.users.isEmpty)
+        else if (admin.usersError != null && users.isEmpty)
           _AdminErrorState(
             title: 'Unable to load accounts',
             message: admin.usersError!,
             onRetry: onRefresh,
           )
-        else if (admin.users.isEmpty)
+        else if (users.isEmpty)
           const _AdminEmptyState(
             icon: Icons.people_outline,
             title: 'No accounts available',
@@ -842,8 +1116,13 @@ class _AccountsSection extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-          _AccountsList(users: admin.users),
         ],
+      ],
+    );
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(child: header),
+        if (users.isNotEmpty) _AccountsList(users: users),
       ],
     );
   }
@@ -858,66 +1137,73 @@ class _AccountsList extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return LayoutBuilder(
+    return SliverLayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 800) {
-          return Column(
-            children: [
-              for (var index = 0; index < users.length; index++) ...[
-                _AccountCard(user: users[index]),
-                if (index < users.length - 1) const SizedBox(height: 10),
-              ],
-            ],
+        if (constraints.crossAxisExtent < 800) {
+          return SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == users.length - 1 ? 0 : 10,
+                ),
+                child: _AccountCard(user: users[index]),
+              ),
+              childCount: users.length,
+            ),
           );
         }
 
-        return Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: colors.outlineVariant),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: WidgetStatePropertyAll(
-                colors.surfaceContainerHighest,
+        return SliverToBoxAdapter(
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: colors.outlineVariant),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowColor: WidgetStatePropertyAll(
+                  colors.surfaceContainerHighest,
+                ),
+                columns: const [
+                  DataColumn(label: Text('NAME')),
+                  DataColumn(label: Text('EMAIL')),
+                  DataColumn(label: Text('ACCOUNT ROLE')),
+                  DataColumn(label: Text('STAKEHOLDER ROLE')),
+                  DataColumn(label: Text('CREATED')),
+                ],
+                rows: users.map((user) {
+                  return DataRow(
+                    cells: [
+                      DataCell(
+                        Text(
+                          user.fullName.trim().isEmpty ? '—' : user.fullName,
+                        ),
+                      ),
+                      DataCell(
+                        Text(user.email.trim().isEmpty ? '—' : user.email),
+                      ),
+                      DataCell(
+                        _RoleBadge(
+                          role: user.accountRoleLabel,
+                          admin: user.isAdmin,
+                        ),
+                      ),
+                      DataCell(Text(user.stakeholderDisplayName ?? '—')),
+                      DataCell(
+                        Text(
+                          user.createdAt == null
+                              ? '—'
+                              : _formatDate(user.createdAt!),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
               ),
-              columns: const [
-                DataColumn(label: Text('NAME')),
-                DataColumn(label: Text('EMAIL')),
-                DataColumn(label: Text('ACCOUNT ROLE')),
-                DataColumn(label: Text('STAKEHOLDER ROLE')),
-                DataColumn(label: Text('CREATED')),
-              ],
-              rows: users.map((user) {
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      Text(user.fullName.trim().isEmpty ? '—' : user.fullName),
-                    ),
-                    DataCell(
-                      Text(user.email.trim().isEmpty ? '—' : user.email),
-                    ),
-                    DataCell(
-                      _RoleBadge(
-                        role: user.accountRoleLabel,
-                        admin: user.isAdmin,
-                      ),
-                    ),
-                    DataCell(Text(user.stakeholderDisplayName ?? '—')),
-                    DataCell(
-                      Text(
-                        user.createdAt == null
-                            ? '—'
-                            : _formatDate(user.createdAt!),
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
             ),
           ),
         );
@@ -1096,8 +1382,9 @@ class _ClassificationsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final admin = context.watch<AdminProvider>();
+    final records = admin.classificationRecords;
 
-    return Column(
+    final header = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _SectionHeading(
@@ -1108,16 +1395,15 @@ class _ClassificationsSection extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        if (admin.classificationsLoading && admin.classificationRecords.isEmpty)
+        if (admin.classificationsLoading && records.isEmpty)
           const _AdminLoadingState(message: 'Loading classification records...')
-        else if (admin.classificationsError != null &&
-            admin.classificationRecords.isEmpty)
+        else if (admin.classificationsError != null && records.isEmpty)
           _AdminErrorState(
             title: 'Unable to load classifications',
             message: admin.classificationsError!,
             onRetry: onRefresh,
           )
-        else if (admin.classificationRecords.isEmpty)
+        else if (records.isEmpty)
           const _AdminEmptyState(
             icon: Icons.analytics_outlined,
             title: 'No classification records yet',
@@ -1133,9 +1419,13 @@ class _ClassificationsSection extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-
-          _ClassificationList(records: admin.classificationRecords),
         ],
+      ],
+    );
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverToBoxAdapter(child: header),
+        if (records.isNotEmpty) _ClassificationList(records: records),
       ],
     );
   }
@@ -1151,13 +1441,14 @@ class _ClassificationList extends StatelessWidget {
     final sorted = [...records]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    return Column(
-      children: [
-        for (var index = 0; index < sorted.length; index++) ...[
-          _ClassificationCard(record: sorted[index]),
-          if (index < sorted.length - 1) const SizedBox(height: 10),
-        ],
-      ],
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => Padding(
+          padding: EdgeInsets.only(bottom: index == sorted.length - 1 ? 0 : 10),
+          child: _ClassificationCard(record: sorted[index]),
+        ),
+        childCount: sorted.length,
+      ),
     );
   }
 }
@@ -1860,42 +2151,9 @@ class _AdminAccessNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.outlineVariant),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.admin_panel_settings_outlined,
-            color: colors.primary,
-            size: 20,
-          ),
-
-          const SizedBox(width: 10),
-
-          Expanded(
-            child: Text(
-              'Administrator functions are protected by backend authorization. '
-              'Only authorized administrator accounts should be able to access these operations.',
-              style: AppTypography.caption.copyWith(
-                color: colors.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SizedBox.shrink();
   }
 }
-
 // ============================================================
 // DESKTOP SIDEBAR
 // ============================================================
@@ -1953,6 +2211,15 @@ class _AdminSidebar extends StatelessWidget {
             selected: selectedSection == _AdminSection.classifications,
             onTap: () {
               onSectionSelected(_AdminSection.classifications);
+            },
+          ),
+
+          _AdminNavItem(
+            icon: Icons.insights_outlined,
+            label: 'Analytics',
+            selected: selectedSection == _AdminSection.analytics,
+            onTap: () {
+              onSectionSelected(_AdminSection.analytics);
             },
           ),
 
@@ -2152,6 +2419,16 @@ class _AdminDrawer extends StatelessWidget {
                 Navigator.pop(context);
 
                 onSectionSelected(_AdminSection.classifications);
+              },
+            ),
+
+            _DrawerItem(
+              icon: Icons.insights_outlined,
+              label: 'Analytics',
+              selected: selectedSection == _AdminSection.analytics,
+              onTap: () {
+                Navigator.pop(context);
+                onSectionSelected(_AdminSection.analytics);
               },
             ),
 
@@ -2541,7 +2818,7 @@ void _showClassificationDetails(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'PREDICTED GRADE',
+                        'GRADE',
                         style: AppTypography.label.copyWith(
                           color: colors.primary,
                           fontSize: 9,

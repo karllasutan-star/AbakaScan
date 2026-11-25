@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
+
 import 'package:provider/provider.dart';
 
 import '../utils/app_navigation.dart';
+
 import '../app/theme.dart';
+
 import '../models/models.dart';
+
 import '../providers/app_providers.dart';
 
 import 'about_screen.dart';
+
 import 'classify_screen.dart';
+
 import 'history_screen.dart';
+
 import 'profile_screen.dart';
-import 'samples_screen.dart';
+
 import 'settings_screen.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -78,8 +85,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _handleExpiredSession() async {
     context.read<ImageSelectionProvider>().removeImage();
+
     context.read<ClassificationProvider>().reset();
+
     context.read<HistoryProvider>().reset();
+
     context.read<AdminProvider>().reset();
 
     await context.read<AuthProvider>().expireSession();
@@ -98,7 +108,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Future<void> _openClassify() async {
     await openSection(context, const ClassifyScreen());
 
-    if (!mounted) {
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
       return;
     }
 
@@ -108,7 +118,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Future<void> _openHistory() async {
     await openSection(context, const HistoryScreen());
 
-    if (!mounted) {
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
       return;
     }
 
@@ -117,10 +127,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _openProfile() async {
     await openSection(context, const ProfileScreen());
-  }
-
-  Future<void> _openSamples() async {
-    await openSection(context, const SamplesScreen());
   }
 
   Future<void> _openSettings() async {
@@ -133,8 +139,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _logout() async {
     context.read<ImageSelectionProvider>().removeImage();
+
     context.read<ClassificationProvider>().reset();
+
     context.read<HistoryProvider>().reset();
+
     context.read<AdminProvider>().reset();
 
     await context.read<AuthProvider>().logout();
@@ -149,7 +158,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     final colors = theme.colorScheme;
+
     final backgroundColor = theme.scaffoldBackgroundColor;
 
     return LayoutBuilder(
@@ -159,24 +170,33 @@ class _ReportsScreenState extends State<ReportsScreen> {
         if (desktop) {
           return Scaffold(
             backgroundColor: backgroundColor,
+
             body: Row(
               children: [
                 SizedBox(
                   width: 214,
+
                   child: _ReportsSidebar(
                     onDashboard: _returnDashboard,
+
                     onClassify: _openClassify,
+
                     onHistory: _openHistory,
-                    onSamples: _openSamples,
+
                     onSettings: _openSettings,
+
                     onAbout: _openAbout,
+
                     onLogout: _logout,
                   ),
                 ),
+
                 Expanded(
                   child: _ReportsBody(
                     onRefresh: _refreshHistory,
+
                     onClassify: _openClassify,
+
                     onHistory: _openHistory,
                   ),
                 ),
@@ -187,68 +207,130 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
         return Scaffold(
           backgroundColor: backgroundColor,
+
           appBar: AppBar(
             backgroundColor: backgroundColor,
+
             surfaceTintColor: Colors.transparent,
+
             elevation: 0,
-            centerTitle: true,
-            leading: IconButton(
-              tooltip: 'Back',
-              onPressed: () {
-                if (Navigator.of(context).canPop()) {
-                  Navigator.pop(context);
-                } else {
-                  _returnDashboard();
+
+            automaticallyImplyLeading: false,
+
+            titleSpacing: 0,
+
+            toolbarHeight: 56,
+
+            centerTitle: false,
+
+            title: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 96) {
+                  return const SizedBox.shrink();
                 }
+
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: 48,
+
+                      child: IconButton(
+                        tooltip: 'Back',
+
+                        onPressed: () {
+                          if (Navigator.of(context).canPop()) {
+                            Navigator.pop(context);
+                          } else {
+                            _returnDashboard();
+                          }
+                        },
+
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                    ),
+
+                    Expanded(
+                      child: Text(
+                        'Reports',
+
+                        textAlign: TextAlign.center,
+
+                        maxLines: 1,
+
+                        overflow: TextOverflow.ellipsis,
+
+                        style: AppTypography.cardTitle.copyWith(
+                          color: colors.onSurface,
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(
+                      width: 48,
+
+                      child: IconButton(
+                        tooltip: 'Refresh',
+
+                        onPressed: _refreshHistory,
+
+                        icon: const Icon(Icons.refresh_rounded),
+                      ),
+                    ),
+                  ],
+                );
               },
-              icon: const Icon(Icons.arrow_back_rounded),
             ),
-            title: Text(
-              'Reports',
-              style: AppTypography.cardTitle.copyWith(color: colors.onSurface),
-            ),
-            actions: [
-              IconButton(
-                tooltip: 'Refresh',
-                onPressed: _refreshHistory,
-                icon: const Icon(Icons.refresh_rounded),
-              ),
-            ],
           ),
+
           body: _ReportsBody(
             onRefresh: _refreshHistory,
+
             onClassify: _openClassify,
+
             onHistory: _openHistory,
+
             compact: true,
           ),
+
           bottomNavigationBar: NavigationBar(
             selectedIndex: 2,
+
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.home_outlined),
+
                 label: 'Home',
               ),
+
               NavigationDestination(
                 icon: Icon(Icons.history_outlined),
+
                 label: 'History',
               ),
+
               NavigationDestination(
                 icon: Icon(Icons.bar_chart_rounded),
+
                 label: 'Reports',
               ),
+
               NavigationDestination(
                 icon: Icon(Icons.person_outline),
+
                 label: 'Profile',
               ),
             ],
+
             onDestinationSelected: (index) {
               switch (index) {
                 case 0:
                   _returnDashboard();
+
                   break;
 
                 case 1:
                   _openHistory();
+
                   break;
 
                 case 2:
@@ -256,6 +338,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
                 case 3:
                   _openProfile();
+
                   break;
               }
             },
@@ -267,19 +350,26 @@ class _ReportsScreenState extends State<ReportsScreen> {
 }
 
 // ============================================================
+
 // BODY
+
 // ============================================================
 
 class _ReportsBody extends StatelessWidget {
   const _ReportsBody({
     required this.onRefresh,
+
     required this.onClassify,
+
     required this.onHistory,
+
     this.compact = false,
   });
 
   final Future<void> Function() onRefresh;
+
   final Future<void> Function() onClassify;
+
   final Future<void> Function() onHistory;
 
   final bool compact;
@@ -295,19 +385,27 @@ class _ReportsBody extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: onRefresh,
+
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
+
         padding: EdgeInsets.fromLTRB(
           compact ? 16 : 28,
+
           compact ? 8 : 26,
+
           compact ? 16 : 28,
+
           36,
         ),
+
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1180),
+
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+
               children: [
                 if (!compact) const _DesktopHeader(),
 
@@ -352,6 +450,7 @@ class _ReportsBody extends StatelessWidget {
 
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
+
                         children: [
                           Expanded(flex: 6, child: distribution),
 
@@ -367,6 +466,7 @@ class _ReportsBody extends StatelessWidget {
 
                   _RecentActivity(
                     records: records.take(5).toList(),
+
                     onHistory: onHistory,
                   ),
                 ],
@@ -380,7 +480,9 @@ class _ReportsBody extends StatelessWidget {
 }
 
 // ============================================================
+
 // HEADERS
+
 // ============================================================
 
 class _DesktopHeader extends StatelessWidget {
@@ -392,13 +494,18 @@ class _DesktopHeader extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+
       children: [
         Text(
           'ANALYTICS',
+
           style: AppTypography.label.copyWith(
             color: colors.primary,
+
             fontSize: 10,
+
             fontWeight: FontWeight.w700,
+
             letterSpacing: 2,
           ),
         ),
@@ -407,8 +514,10 @@ class _DesktopHeader extends StatelessWidget {
 
         Text(
           'Classification Reports',
+
           style: AppTypography.pageTitle.copyWith(
             fontSize: 34,
+
             color: colors.onSurface,
           ),
         ),
@@ -417,8 +526,10 @@ class _DesktopHeader extends StatelessWidget {
 
         Text(
           'A summary of your saved ABAKASCAN classification records.',
+
           style: AppTypography.bodySecondary.copyWith(
             height: 1.5,
+
             color: colors.onSurfaceVariant,
           ),
         ),
@@ -434,14 +545,20 @@ class _MobileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
+
       height: 175,
+
       clipBehavior: Clip.antiAlias,
+
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(18)),
+
       child: Stack(
         fit: StackFit.expand,
+
         children: [
           Image.asset(
             'assets/images/abakascan_auth_hero.png',
+
             fit: BoxFit.cover,
           ),
 
@@ -449,10 +566,14 @@ class _MobileHeader extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.centerLeft,
+
                 end: Alignment.centerRight,
+
                 colors: [
                   Color(0xF20F3D2E),
+
                   Color(0xB80F3D2E),
+
                   Color(0x330F3D2E),
                 ],
               ),
@@ -461,15 +582,21 @@ class _MobileHeader extends StatelessWidget {
 
           Padding(
             padding: const EdgeInsets.all(18),
+
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+
               mainAxisAlignment: MainAxisAlignment.center,
+
               children: [
                 Text(
                   'Your Fiber\nInsights',
+
                   style: AppTypography.pageTitle.copyWith(
                     color: Colors.white,
+
                     fontSize: 27,
+
                     height: 1.04,
                   ),
                 ),
@@ -478,6 +605,7 @@ class _MobileHeader extends StatelessWidget {
 
                 Text(
                   'Analytics based on your saved classifications.',
+
                   style: AppTypography.caption.copyWith(
                     color: Colors.white.withValues(alpha: 0.74),
                   ),
@@ -492,7 +620,9 @@ class _MobileHeader extends StatelessWidget {
 }
 
 // ============================================================
+
 // SUMMARY
+
 // ============================================================
 
 class _SummaryCards extends StatelessWidget {
@@ -505,22 +635,33 @@ class _SummaryCards extends StatelessWidget {
     final cards = [
       _SummaryData(
         icon: Icons.analytics_outlined,
+
         label: 'Total Analyses',
+
         value: analytics.total.toString(),
       ),
+
       _SummaryData(
         icon: Icons.center_focus_strong_outlined,
+
         label: 'Average Confidence',
+
         value: '${analytics.averageConfidence.toStringAsFixed(1)}%',
       ),
+
       _SummaryData(
         icon: Icons.workspace_premium_outlined,
+
         label: 'Most Common Grade',
+
         value: analytics.mostCommonGrade,
       ),
+
       _SummaryData(
         icon: Icons.calendar_month_outlined,
+
         label: 'This Month',
+
         value: analytics.thisMonth.toString(),
       ),
     ];
@@ -528,19 +669,44 @@ class _SummaryCards extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 650) {
-          return GridView.builder(
-            itemCount: cards.length,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              mainAxisExtent: 130,
-            ),
-            itemBuilder: (context, index) {
-              return _SummaryCard(data: cards[index]);
-            },
+          // Let each row grow to fit its text instead of forcing a fixed
+
+          // grid height. Use one column on small screens or with large text.
+
+          final largeText = MediaQuery.textScalerOf(context).scale(12) > 18;
+
+          final columns = constraints.maxWidth < 340 || largeText ? 1 : 2;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+
+            children: [
+              for (var start = 0; start < cards.length; start += columns) ...[
+                if (start > 0) const SizedBox(height: 10),
+
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+
+                    children: [
+                      for (
+                        var offset = 0;
+
+                        offset < columns && start + offset < cards.length;
+
+                        offset++
+                      ) ...[
+                        if (offset > 0) const SizedBox(width: 10),
+
+                        Expanded(
+                          child: _SummaryCard(data: cards[start + offset]),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ],
           );
         }
 
@@ -561,12 +727,16 @@ class _SummaryCards extends StatelessWidget {
 class _SummaryData {
   const _SummaryData({
     required this.icon,
+
     required this.label,
+
     required this.value,
   });
 
   final IconData icon;
+
   final String label;
+
   final String value;
 }
 
@@ -579,22 +749,32 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
+
       decoration: BoxDecoration(
         color: AppColors.surface,
+
         borderRadius: BorderRadius.circular(14),
+
         border: Border.all(color: AppColors.border),
       ),
+
       child: Column(
         mainAxisSize: MainAxisSize.min,
+
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
           Container(
             width: 39,
+
             height: 39,
+
             decoration: const BoxDecoration(
               color: AppColors.primarySoft,
+
               shape: BoxShape.circle,
             ),
+
             child: Icon(data.icon, size: 19, color: AppColors.primary),
           ),
 
@@ -602,10 +782,14 @@ class _SummaryCard extends StatelessWidget {
 
           Text(
             data.value,
+
             maxLines: 1,
+
             overflow: TextOverflow.ellipsis,
+
             style: AppTypography.sectionTitle.copyWith(
               color: AppColors.primaryDark,
+
               fontSize: 20,
             ),
           ),
@@ -620,7 +804,9 @@ class _SummaryCard extends StatelessWidget {
 }
 
 // ============================================================
+
 // GRADE DISTRIBUTION
+
 // ============================================================
 
 class _GradeDistribution extends StatelessWidget {
@@ -632,16 +818,21 @@ class _GradeDistribution extends StatelessWidget {
   Widget build(BuildContext context) {
     return _ReportPanel(
       title: 'Grade Distribution',
-      subtitle: 'Breakdown of your saved predicted grades.',
+
+      subtitle: 'Breakdown of your saved grades.',
+
       child: Column(
         children: [
           for (
             var index = 0;
+
             index < analytics.gradeDistribution.length;
+
             index++
           ) ...[
             _DistributionRow(
               entry: analytics.gradeDistribution[index],
+
               total: analytics.total,
             ),
 
@@ -658,6 +849,7 @@ class _DistributionRow extends StatelessWidget {
   const _DistributionRow({required this.entry, required this.total});
 
   final MapEntry<String, int> entry;
+
   final int total;
 
   @override
@@ -673,10 +865,14 @@ class _DistributionRow extends StatelessWidget {
             Expanded(
               child: Text(
                 entry.key,
+
                 maxLines: 1,
+
                 overflow: TextOverflow.ellipsis,
+
                 style: AppTypography.cardTitle.copyWith(
                   fontSize: 13,
+
                   color: colors.onSurface,
                 ),
               ),
@@ -684,8 +880,10 @@ class _DistributionRow extends StatelessWidget {
 
             Text(
               '${entry.value}',
+
               style: AppTypography.caption.copyWith(
                 color: colors.primary,
+
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -694,9 +892,12 @@ class _DistributionRow extends StatelessWidget {
 
             SizedBox(
               width: 45,
+
               child: Text(
                 '${(percentage * 100).toStringAsFixed(0)}%',
+
                 textAlign: TextAlign.right,
+
                 style: AppTypography.caption.copyWith(
                   color: colors.onSurfaceVariant,
                 ),
@@ -709,10 +910,14 @@ class _DistributionRow extends StatelessWidget {
 
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
+
           child: LinearProgressIndicator(
             value: percentage,
+
             minHeight: 8,
+
             backgroundColor: colors.surfaceContainerHighest,
+
             valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
           ),
         ),
@@ -722,7 +927,9 @@ class _DistributionRow extends StatelessWidget {
 }
 
 // ============================================================
+
 // CONFIDENCE
+
 // ============================================================
 
 class _ConfidencePanel extends StatelessWidget {
@@ -736,12 +943,16 @@ class _ConfidencePanel extends StatelessWidget {
 
     return _ReportPanel(
       title: 'Confidence Summary',
+
       subtitle: 'Confidence values from your saved records.',
+
       child: Column(
         children: [
           _ConfidenceMetric(
             icon: Icons.trending_up_rounded,
+
             title: 'Highest Confidence',
+
             value: '${analytics.highestConfidence.toStringAsFixed(1)}%',
           ),
 
@@ -749,7 +960,9 @@ class _ConfidencePanel extends StatelessWidget {
 
           _ConfidenceMetric(
             icon: Icons.show_chart_rounded,
+
             title: 'Average Confidence',
+
             value: '${analytics.averageConfidence.toStringAsFixed(1)}%',
           ),
 
@@ -757,7 +970,9 @@ class _ConfidencePanel extends StatelessWidget {
 
           _ConfidenceMetric(
             icon: Icons.trending_down_rounded,
+
             title: 'Lowest Confidence',
+
             value: '${analytics.lowestConfidence.toStringAsFixed(1)}%',
           ),
 
@@ -765,16 +980,22 @@ class _ConfidencePanel extends StatelessWidget {
 
           Container(
             width: double.infinity,
+
             padding: const EdgeInsets.all(14),
+
             decoration: BoxDecoration(
               color: colors.primaryContainer,
+
               borderRadius: BorderRadius.circular(12),
             ),
+
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+
               children: [
                 Text(
                   'Latest Grade',
+
                   style: AppTypography.caption.copyWith(
                     color: colors.onPrimaryContainer.withValues(alpha: 0.75),
                   ),
@@ -784,8 +1005,10 @@ class _ConfidencePanel extends StatelessWidget {
 
                 Text(
                   analytics.latestGrade,
+
                   style: AppTypography.sectionTitle.copyWith(
                     color: colors.onPrimaryContainer,
+
                     fontSize: 20,
                   ),
                 ),
@@ -801,12 +1024,16 @@ class _ConfidencePanel extends StatelessWidget {
 class _ConfidenceMetric extends StatelessWidget {
   const _ConfidenceMetric({
     required this.icon,
+
     required this.title,
+
     required this.value,
   });
 
   final IconData icon;
+
   final String title;
+
   final String value;
 
   @override
@@ -817,11 +1044,15 @@ class _ConfidenceMetric extends StatelessWidget {
       children: [
         Container(
           width: 42,
+
           height: 42,
+
           decoration: BoxDecoration(
             color: colors.surfaceContainerHighest,
+
             shape: BoxShape.circle,
           ),
+
           child: Icon(icon, color: colors.primary, size: 20),
         ),
 
@@ -830,9 +1061,11 @@ class _ConfidenceMetric extends StatelessWidget {
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
               Text(
                 title,
+
                 style: AppTypography.caption.copyWith(
                   color: colors.onSurfaceVariant,
                 ),
@@ -842,8 +1075,10 @@ class _ConfidenceMetric extends StatelessWidget {
 
               Text(
                 value,
+
                 style: AppTypography.cardTitle.copyWith(
                   color: colors.onSurface,
+
                   fontSize: 15,
                 ),
               ),
@@ -856,7 +1091,9 @@ class _ConfidenceMetric extends StatelessWidget {
 }
 
 // ============================================================
+
 // RECENT ACTIVITY
+
 // ============================================================
 
 class _RecentActivity extends StatelessWidget {
@@ -870,11 +1107,15 @@ class _RecentActivity extends StatelessWidget {
   Widget build(BuildContext context) {
     return _ReportPanel(
       title: 'Recent Activity',
+
       subtitle: 'Your latest saved classification records.',
+
       trailing: TextButton(
         onPressed: onHistory,
+
         child: const Text('View History →'),
       ),
+
       child: Column(
         children: [
           for (var index = 0; index < records.length; index++) ...[
@@ -903,14 +1144,20 @@ class _ActivityRow extends StatelessWidget {
       children: [
         Container(
           width: 44,
+
           height: 44,
+
           decoration: BoxDecoration(
             color: colors.primaryContainer,
+
             shape: BoxShape.circle,
           ),
+
           child: Icon(
             Icons.analytics_outlined,
+
             size: 20,
+
             color: colors.primary,
           ),
         ),
@@ -920,11 +1167,14 @@ class _ActivityRow extends StatelessWidget {
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
               Text(
                 'Analysis ${_shortId(record.id)}',
+
                 style: AppTypography.cardTitle.copyWith(
                   fontSize: 13,
+
                   color: colors.onSurface,
                 ),
               ),
@@ -933,6 +1183,7 @@ class _ActivityRow extends StatelessWidget {
 
               Text(
                 _formatDateTime(record.createdAt),
+
                 style: AppTypography.caption.copyWith(
                   color: colors.onSurfaceVariant,
                 ),
@@ -945,18 +1196,25 @@ class _ActivityRow extends StatelessWidget {
 
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
+
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+
               decoration: BoxDecoration(
                 color: colors.primaryContainer,
+
                 borderRadius: BorderRadius.circular(999),
               ),
+
               child: Text(
                 record.predictedGrade,
+
                 style: AppTypography.caption.copyWith(
                   color: colors.onPrimaryContainer,
+
                   fontWeight: FontWeight.w700,
+
                   fontSize: 9,
                 ),
               ),
@@ -966,8 +1224,10 @@ class _ActivityRow extends StatelessWidget {
 
             Text(
               '${confidence.toStringAsFixed(0)}%',
+
               style: AppTypography.caption.copyWith(
                 color: colors.primary,
+
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -979,18 +1239,24 @@ class _ActivityRow extends StatelessWidget {
 }
 
 // ============================================================
+
 // PANEL BASE
+
 // ============================================================
 
 class _ReportPanel extends StatelessWidget {
   const _ReportPanel({
     required this.title,
+
     required this.subtitle,
+
     required this.child,
+
     this.trailing,
   });
 
   final String title;
+
   final String subtitle;
 
   final Widget child;
@@ -1003,25 +1269,34 @@ class _ReportPanel extends StatelessWidget {
 
     return Container(
       width: double.infinity,
+
       padding: const EdgeInsets.all(17),
+
       decoration: BoxDecoration(
         color: colors.surface,
+
         borderRadius: BorderRadius.circular(15),
+
         border: Border.all(color: colors.outlineVariant),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
           Row(
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+
                   children: [
                     Text(
                       title,
+
                       style: AppTypography.cardTitle.copyWith(
                         fontSize: 15,
+
                         color: colors.onSurface,
                       ),
                     ),
@@ -1030,6 +1305,7 @@ class _ReportPanel extends StatelessWidget {
 
                     Text(
                       subtitle,
+
                       style: AppTypography.caption.copyWith(
                         color: colors.onSurfaceVariant,
                       ),
@@ -1052,7 +1328,9 @@ class _ReportPanel extends StatelessWidget {
 }
 
 // ============================================================
+
 // EMPTY / LOADING / ERROR
+
 // ============================================================
 
 class _EmptyReports extends StatelessWidget {
@@ -1066,24 +1344,35 @@ class _EmptyReports extends StatelessWidget {
 
     return Container(
       width: double.infinity,
+
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 58),
+
       decoration: BoxDecoration(
         color: colors.surface,
+
         borderRadius: BorderRadius.circular(15),
+
         border: Border.all(color: colors.outlineVariant),
       ),
+
       child: Column(
         children: [
           Container(
             width: 68,
+
             height: 68,
+
             decoration: BoxDecoration(
               color: colors.primaryContainer,
+
               shape: BoxShape.circle,
             ),
+
             child: Icon(
               Icons.bar_chart_rounded,
+
               color: colors.primary,
+
               size: 31,
             ),
           ),
@@ -1092,8 +1381,10 @@ class _EmptyReports extends StatelessWidget {
 
           Text(
             'No report data yet',
+
             style: AppTypography.sectionTitle.copyWith(
               fontSize: 20,
+
               color: colors.onSurface,
             ),
           ),
@@ -1102,7 +1393,9 @@ class _EmptyReports extends StatelessWidget {
 
           Text(
             'Reports are created from your saved classification history. Analyze a fiber image to begin.',
+
             textAlign: TextAlign.center,
+
             style: AppTypography.bodySecondary.copyWith(
               color: colors.onSurfaceVariant,
             ),
@@ -1113,10 +1406,14 @@ class _EmptyReports extends StatelessWidget {
           FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primaryDark,
+
               foregroundColor: Colors.white,
             ),
+
             onPressed: onClassify,
+
             icon: const Icon(Icons.camera_alt_outlined),
+
             label: const Text('Analyze Fiber'),
           ),
         ],
@@ -1134,12 +1431,17 @@ class _LoadingState extends StatelessWidget {
 
     return Container(
       width: double.infinity,
+
       padding: const EdgeInsets.symmetric(vertical: 60),
+
       decoration: BoxDecoration(
         color: colors.surface,
+
         borderRadius: BorderRadius.circular(14),
+
         border: Border.all(color: colors.outlineVariant),
       ),
+
       child: Column(
         children: [
           const CircularProgressIndicator(strokeWidth: 2.5),
@@ -1148,6 +1450,7 @@ class _LoadingState extends StatelessWidget {
 
           Text(
             'Loading report data...',
+
             style: AppTypography.bodySecondary.copyWith(
               color: colors.onSurfaceVariant,
             ),
@@ -1162,6 +1465,7 @@ class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.message, required this.onRetry});
 
   final String message;
+
   final VoidCallback onRetry;
 
   @override
@@ -1170,12 +1474,17 @@ class _ErrorState extends StatelessWidget {
 
     return Container(
       width: double.infinity,
+
       padding: const EdgeInsets.all(24),
+
       decoration: BoxDecoration(
         color: colors.surface,
+
         borderRadius: BorderRadius.circular(14),
+
         border: Border.all(color: colors.outlineVariant),
       ),
+
       child: Column(
         children: [
           Icon(Icons.error_outline, color: colors.error, size: 30),
@@ -1184,7 +1493,9 @@ class _ErrorState extends StatelessWidget {
 
           Text(
             message,
+
             textAlign: TextAlign.center,
+
             style: AppTypography.bodySecondary.copyWith(
               color: colors.onSurfaceVariant,
             ),
@@ -1194,7 +1505,9 @@ class _ErrorState extends StatelessWidget {
 
           OutlinedButton.icon(
             onPressed: onRetry,
+
             icon: const Icon(Icons.refresh_rounded),
+
             label: const Text('Retry'),
           ),
         ],
@@ -1204,17 +1517,23 @@ class _ErrorState extends StatelessWidget {
 }
 
 // ============================================================
+
 // SIDEBAR
+
 // ============================================================
 
 class _ReportsSidebar extends StatelessWidget {
   const _ReportsSidebar({
     required this.onDashboard,
+
     required this.onClassify,
+
     required this.onHistory,
-    required this.onSamples,
+
     required this.onSettings,
+
     required this.onAbout,
+
     required this.onLogout,
   });
 
@@ -1223,8 +1542,6 @@ class _ReportsSidebar extends StatelessWidget {
   final Future<void> Function() onClassify;
 
   final Future<void> Function() onHistory;
-
-  final Future<void> Function() onSamples;
 
   final Future<void> Function() onSettings;
 
@@ -1236,11 +1553,14 @@ class _ReportsSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.primaryDark,
+
       padding: const EdgeInsets.fromLTRB(14, 26, 14, 18),
+
       child: Column(
         children: [
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 10),
+
             child: _Brand(),
           ),
 
@@ -1248,37 +1568,41 @@ class _ReportsSidebar extends StatelessWidget {
 
           _SidebarItem(
             icon: Icons.dashboard_outlined,
+
             label: 'Dashboard',
+
             onTap: onDashboard,
           ),
 
           _SidebarItem(
             icon: Icons.camera_alt_outlined,
+
             label: 'Analyze',
+
             onTap: onClassify,
           ),
 
           _SidebarItem(
             icon: Icons.history_rounded,
-            label: 'History',
-            onTap: onHistory,
-          ),
 
-          _SidebarItem(
-            icon: Icons.inventory_2_outlined,
-            label: 'Samples',
-            onTap: onSamples,
+            label: 'History',
+
+            onTap: onHistory,
           ),
 
           const _SidebarItem(
             icon: Icons.bar_chart_rounded,
+
             label: 'Reports',
+
             selected: true,
           ),
 
           _SidebarItem(
             icon: Icons.settings_outlined,
+
             label: 'Settings',
+
             onTap: onSettings,
           ),
 
@@ -1286,16 +1610,22 @@ class _ReportsSidebar extends StatelessWidget {
 
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
+
             child: SizedBox(
               width: double.infinity,
+
               height: 120,
+
               child: Stack(
                 fit: StackFit.expand,
+
                 children: [
                   Image.asset(
                     'assets/images/abakascan_auth_hero.png',
+
                     fit: BoxFit.cover,
                   ),
+
                   Container(
                     color: AppColors.primaryDark.withValues(alpha: 0.48),
                   ),
@@ -1308,13 +1638,17 @@ class _ReportsSidebar extends StatelessWidget {
 
           _SidebarItem(
             icon: Icons.info_outline_rounded,
+
             label: 'About',
+
             onTap: onAbout,
           ),
 
           _SidebarItem(
             icon: Icons.logout_rounded,
+
             label: 'Log Out',
+
             onTap: onLogout,
           ),
         ],
@@ -1326,12 +1660,16 @@ class _ReportsSidebar extends StatelessWidget {
 class _SidebarItem extends StatelessWidget {
   const _SidebarItem({
     required this.icon,
+
     required this.label,
+
     this.selected = false,
+
     this.onTap,
   });
 
   final IconData icon;
+
   final String label;
 
   final bool selected;
@@ -1346,14 +1684,20 @@ class _SidebarItem extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 7),
+
       child: Material(
         color: selected ? AppColors.primary : Colors.transparent,
+
         borderRadius: BorderRadius.circular(9),
+
         child: InkWell(
           onTap: onTap,
+
           borderRadius: BorderRadius.circular(9),
+
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+
             child: Row(
               children: [
                 Icon(icon, size: 19, color: foreground),
@@ -1363,9 +1707,12 @@ class _SidebarItem extends StatelessWidget {
                 Expanded(
                   child: Text(
                     label,
+
                     style: AppTypography.bodySecondary.copyWith(
                       color: foreground,
+
                       fontSize: 13,
+
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
@@ -1380,7 +1727,9 @@ class _SidebarItem extends StatelessWidget {
 }
 
 // ============================================================
+
 // BRAND
+
 // ============================================================
 
 class _Brand extends StatelessWidget {
@@ -1390,6 +1739,7 @@ class _Brand extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
+
       children: [
         const Icon(Icons.eco_outlined, color: AppColors.fiberBeige, size: 24),
 
@@ -1397,10 +1747,14 @@ class _Brand extends StatelessWidget {
 
         Text(
           'ABAKASCAN',
+
           style: AppTypography.label.copyWith(
             color: Colors.white,
+
             fontSize: 14,
+
             fontWeight: FontWeight.w700,
+
             letterSpacing: 2.2,
           ),
         ),
@@ -1410,30 +1764,42 @@ class _Brand extends StatelessWidget {
 }
 
 // ============================================================
+
 // ANALYTICS
+
 // ============================================================
 
 class _ReportAnalytics {
   const _ReportAnalytics({
     required this.total,
+
     required this.averageConfidence,
+
     required this.highestConfidence,
+
     required this.lowestConfidence,
+
     required this.thisMonth,
+
     required this.latestGrade,
+
     required this.mostCommonGrade,
+
     required this.gradeDistribution,
   });
 
   final int total;
 
   final double averageConfidence;
+
   final double highestConfidence;
+
   final double lowestConfidence;
 
   final int thisMonth;
 
   final String latestGrade;
+
   final String mostCommonGrade;
 
   final List<MapEntry<String, int>> gradeDistribution;
@@ -1442,12 +1808,19 @@ class _ReportAnalytics {
     if (records.isEmpty) {
       return const _ReportAnalytics(
         total: 0,
+
         averageConfidence: 0,
+
         highestConfidence: 0,
+
         lowestConfidence: 0,
+
         thisMonth: 0,
+
         latestGrade: '—',
+
         mostCommonGrade: '—',
+
         gradeDistribution: [],
       );
     }
@@ -1455,8 +1828,11 @@ class _ReportAnalytics {
     final gradeCounts = <String, int>{};
 
     var totalConfidence = 0.0;
+
     var highestConfidence = 0.0;
+
     var lowestConfidence = 100.0;
+
     var thisMonth = 0;
 
     final now = DateTime.now();
@@ -1502,19 +1878,28 @@ class _ReportAnalytics {
 
     return _ReportAnalytics(
       total: records.length,
+
       averageConfidence: totalConfidence / records.length,
+
       highestConfidence: highestConfidence,
+
       lowestConfidence: lowestConfidence,
+
       thisMonth: thisMonth,
+
       latestGrade: records.first.predictedGrade,
+
       mostCommonGrade: mostCommonGrade,
+
       gradeDistribution: distribution,
     );
   }
 }
 
 // ============================================================
+
 // HELPERS
+
 // ============================================================
 
 double _confidence(double value) {
@@ -1540,16 +1925,27 @@ String _formatDateTime(DateTime date) {
 
   const months = [
     'Jan',
+
     'Feb',
+
     'Mar',
+
     'Apr',
+
     'May',
+
     'Jun',
+
     'Jul',
+
     'Aug',
+
     'Sep',
+
     'Oct',
+
     'Nov',
+
     'Dec',
   ];
 

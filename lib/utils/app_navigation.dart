@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 Route<T> fadeRoute<T>(Widget page) {
@@ -5,8 +6,12 @@ Route<T> fadeRoute<T>(Widget page) {
     pageBuilder: (context, animation, secondaryAnimation) {
       return page;
     },
-    transitionDuration: const Duration(milliseconds: 160),
-    reverseTransitionDuration: const Duration(milliseconds: 140),
+    transitionDuration: kDebugMode
+        ? Duration.zero
+        : const Duration(milliseconds: 160),
+    reverseTransitionDuration: kDebugMode
+        ? Duration.zero
+        : const Duration(milliseconds: 140),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       final curvedAnimation = CurvedAnimation(
         parent: animation,

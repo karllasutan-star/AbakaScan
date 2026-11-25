@@ -1,17 +1,25 @@
 import 'package:flutter/foundation.dart';
+
 import 'package:flutter/material.dart';
+
 import 'package:provider/provider.dart';
 
 import '../app/theme.dart';
+
 import '../utils/app_navigation.dart';
+
 import '../providers/app_providers.dart';
 
 import 'about_screen.dart';
+
 import 'history_screen.dart';
+
 import 'login_screen.dart';
+
 import 'reports_screen.dart';
+
 import 'result_screen.dart';
-import 'samples_screen.dart';
+
 import 'settings_screen.dart';
 
 class ClassifyScreen extends StatefulWidget {
@@ -22,8 +30,25 @@ class ClassifyScreen extends StatefulWidget {
 }
 
 class _ClassifyScreenState extends State<ClassifyScreen> {
+  ResultScreen? _analysisResult;
+
+  Future<void> _startNewAnalysis() async {
+    if (context.read<ClassificationProvider>().isAnalyzing) return;
+
+    context.read<ImageSelectionProvider>().removeImage();
+
+    context.read<ClassificationProvider>().reset();
+
+    setState(() => _analysisResult = null);
+  }
+
+  Widget _buildAnalyzeContent({bool compact = false}) {
+    return _analysisResult ?? _AnalyzeBody(compact: compact);
+  }
+
   Future<void> _chooseImage() async {
     final imageProvider = context.read<ImageSelectionProvider>();
+
     final classificationProvider = context.read<ClassificationProvider>();
 
     if (classificationProvider.isAnalyzing || imageProvider.loading) {
@@ -37,6 +62,7 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
 
   Future<void> _captureImage() async {
     final imageProvider = context.read<ImageSelectionProvider>();
+
     final classificationProvider = context.read<ClassificationProvider>();
 
     if (classificationProvider.isAnalyzing || imageProvider.loading) {
@@ -69,30 +95,38 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
 
     final action = await showDialog<_AuthenticationAction>(
       context: context,
+
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Sign In Required'),
+
           content: const Text(
             'An ABAKASCAN account is required before '
             'submitting an image for classification.',
           ),
+
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(dialogContext);
               },
+
               child: const Text('Cancel'),
             ),
+
             OutlinedButton(
               onPressed: () {
                 Navigator.pop(dialogContext, _AuthenticationAction.register);
               },
+
               child: const Text('Create Account'),
             ),
+
             FilledButton(
               onPressed: () {
                 Navigator.pop(dialogContext, _AuthenticationAction.login);
               },
+
               child: const Text('Log In'),
             ),
           ],
@@ -123,9 +157,7 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
     final imageProvider = context.read<ImageSelectionProvider>();
     final classificationProvider = context.read<ClassificationProvider>();
 
-    if (classificationProvider.isAnalyzing) {
-      return;
-    }
+    if (classificationProvider.isAnalyzing) return;
 
     if (!imageProvider.hasImage || imageProvider.selectedImageBytes == null) {
       ScaffoldMessenger.of(context)
@@ -135,7 +167,6 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
             content: Text('Select or capture an abaca fiber image first.'),
           ),
         );
-
       return;
     }
 
@@ -144,21 +175,16 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
     if (!authProvider.isAuthenticated) {
       final authenticated = await _requestAuthentication();
 
-      if (!mounted || !authenticated) {
-        return;
-      }
+      if (!mounted || !authenticated) return;
 
       authProvider = context.read<AuthProvider>();
     }
 
     final token = authProvider.token;
 
-    if (token == null || token.trim().isEmpty) {
-      return;
-    }
+    if (token == null || token.trim().isEmpty) return;
 
     final bytes = imageProvider.selectedImageBytes!;
-
     final fileName = imageProvider.fileName ?? 'abaca_fiber.jpg';
 
     final success = await classificationProvider.classify(
@@ -167,39 +193,56 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
       fileName: fileName,
     );
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (classificationProvider.sessionExpired) {
       await _handleExpiredSession();
       return;
     }
 
-    if (!success || classificationProvider.result == null) {
+    if (!success || classificationProvider.result == null) return;
+
+    final currentAuth = context.read<AuthProvider>();
+
+    if (!currentAuth.isAuthenticated || currentAuth.token != token) {
       return;
     }
 
     final result = classificationProvider.result!;
 
-    await _syncHistory();
+    // Display the result without waiting for a history request.
+    setState(() {
+      _analysisResult = ResultScreen(
+        imageBytes: bytes,
+        predictedGrade: result.predictedGrade,
+        confidence: result.confidence,
+        gradeScores: result.gradeScores,
+        classificationId: result.classificationId,
+        createdAt: result.createdAt,
+        savedToHistory: result.savedToHistory,
+        detectionStatus: result.detectionStatus,
+        detectionMessage: result.detectionMessage,
+        onAnalyzeAnother: _startNewAnalysis,
+        onHistory: _openHistory,
+        onDashboard: _returnHome,
+      );
+    });
 
-    if (!mounted) {
-      return;
+    if (result.savedToHistory) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+
+        final auth = context.read<AuthProvider>();
+
+        if (!auth.isAuthenticated || auth.token != token) return;
+
+        try {
+          await _syncHistory();
+        } catch (error) {
+          debugPrint('History refresh after classification failed: $error');
+        }
+      });
     }
-
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ResultScreen(
-          imageBytes: bytes,
-          predictedGrade: result.predictedGrade,
-          confidence: result.confidence,
-          classificationId: result.classificationId,
-          createdAt: result.createdAt,
-          savedToHistory: result.savedToHistory,
-        ),
-      ),
-    );
   }
 
   Future<void> _syncHistory() async {
@@ -254,14 +297,6 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
     }
 
     await openSection(context, const HistoryScreen());
-  }
-
-  Future<void> _openSamples() async {
-    if (context.read<ClassificationProvider>().isAnalyzing) {
-      return;
-    }
-
-    await openSection(context, const SamplesScreen());
   }
 
   Future<void> _openReports() async {
@@ -325,26 +360,35 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
         if (desktop && authProvider.isAuthenticated && authProvider.isUser) {
           return Scaffold(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+
             body: Stack(
               children: [
                 Row(
                   children: [
                     SizedBox(
                       width: 214,
+
                       child: _AnalyzeSidebar(
                         onDashboard: _returnHome,
+
                         onHistory: _openHistory,
-                        onSamples: _openSamples,
+
                         onReports: _openReports,
+
                         onSettings: _openSettings,
+
                         onAbout: _openAbout,
+
                         onLogout: _logout,
+
                         disabled: classificationProvider.isAnalyzing,
                       ),
                     ),
-                    const Expanded(child: _AnalyzeBody()),
+
+                    Expanded(child: _buildAnalyzeContent()),
                   ],
                 ),
+
                 if (classificationProvider.isAnalyzing)
                   const _AnalysisOverlay(),
               ],
@@ -354,43 +398,99 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+
           appBar: AppBar(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+
             surfaceTintColor: Colors.transparent,
+
             elevation: 0,
-            leading: IconButton(
-              tooltip: 'Back',
-              onPressed: classificationProvider.isAnalyzing
-                  ? null
-                  : () {
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.pop(context);
-                      } else {
-                        _returnHome();
-                      }
-                    },
-              icon: const Icon(Icons.arrow_back_rounded),
+
+            automaticallyImplyLeading: false,
+
+            titleSpacing: 0,
+
+            centerTitle: false,
+
+            toolbarHeight: 56,
+
+            title: LayoutBuilder(
+              builder: (context, constraints) {
+                // Resizing the browser can briefly give the toolbar almost
+
+                // no width. Do not lay out fixed-width buttons in that frame.
+
+                if (constraints.maxWidth < 96) {
+                  return const SizedBox.shrink();
+                }
+
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: 48,
+
+                      child: IconButton(
+                        tooltip: 'Back',
+
+                        onPressed: classificationProvider.isAnalyzing
+                            ? null
+                            : () {
+                                if (_analysisResult != null) {
+                                  _startNewAnalysis();
+
+                                  return;
+                                }
+
+                                if (Navigator.of(context).canPop()) {
+                                  Navigator.pop(context);
+                                } else {
+                                  _returnHome();
+                                }
+                              },
+
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                    ),
+
+                    Expanded(
+                      child: Text(
+                        'Analyze Fiber',
+
+                        textAlign: TextAlign.center,
+
+                        maxLines: 1,
+
+                        overflow: TextOverflow.ellipsis,
+
+                        style: AppTypography.cardTitle.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(
+                      width: 48,
+
+                      child: IconButton(
+                        tooltip: 'About',
+
+                        onPressed: classificationProvider.isAnalyzing
+                            ? null
+                            : _openAbout,
+
+                        icon: const Icon(Icons.info_outline_rounded),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
-            title: Text(
-              'Analyze Fiber',
-              style: AppTypography.cardTitle.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-            centerTitle: true,
-            actions: [
-              IconButton(
-                tooltip: 'About',
-                onPressed: classificationProvider.isAnalyzing
-                    ? null
-                    : _openAbout,
-                icon: const Icon(Icons.info_outline_rounded),
-              ),
-            ],
           ),
+
           body: Stack(
             children: [
-              const _AnalyzeBody(compact: true),
+              _buildAnalyzeContent(compact: true),
+
               if (classificationProvider.isAnalyzing) const _AnalysisOverlay(),
             ],
           ),
@@ -403,7 +503,9 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
 enum _AuthenticationAction { login, register }
 
 // ============================================================
+
 // MAIN BODY
+
 // ============================================================
 
 class _AnalyzeBody extends StatelessWidget {
@@ -420,15 +522,21 @@ class _AnalyzeBody extends StatelessWidget {
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         compact ? 16 : 28,
+
         compact ? 8 : 26,
+
         compact ? 16 : 28,
+
         40,
       ),
+
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1180),
+
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
               if (!compact) const _DesktopPageHeader(),
 
@@ -443,12 +551,14 @@ class _AnalyzeBody extends StatelessWidget {
 
               if (imageProvider.error != null) ...[
                 const SizedBox(height: 14),
+
                 _ImageErrorPanel(message: imageProvider.error!),
               ],
 
               if (classificationProvider.hasError &&
                   imageProvider.hasImage) ...[
                 const SizedBox(height: 14),
+
                 const _ClassificationError(),
               ],
 
@@ -466,7 +576,9 @@ class _AnalyzeBody extends StatelessWidget {
 }
 
 // ============================================================
+
 // DESKTOP HEADER
+
 // ============================================================
 
 class _DesktopPageHeader extends StatelessWidget {
@@ -478,17 +590,23 @@ class _DesktopPageHeader extends StatelessWidget {
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
+
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
               Text(
                 'FIBER ANALYSIS',
+
                 style: AppTypography.label.copyWith(
                   color: colors.primary,
+
                   fontSize: 10,
+
                   letterSpacing: 2,
+
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -497,8 +615,10 @@ class _DesktopPageHeader extends StatelessWidget {
 
               Text(
                 'Analyze Abaca Fiber',
+
                 style: AppTypography.pageTitle.copyWith(
                   fontSize: 34,
+
                   color: colors.onSurface,
                 ),
               ),
@@ -507,10 +627,13 @@ class _DesktopPageHeader extends StatelessWidget {
 
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 650),
+
                 child: Text(
                   'Upload or capture a clear abaca fiber image, review it, then submit it for classification.',
+
                   style: AppTypography.bodySecondary.copyWith(
                     height: 1.55,
+
                     color: colors.onSurfaceVariant,
                   ),
                 ),
@@ -518,92 +641,15 @@ class _DesktopPageHeader extends StatelessWidget {
             ],
           ),
         ),
-
-        const _StepIndicator(),
       ],
     );
   }
 }
 
-class _StepIndicator extends StatelessWidget {
-  const _StepIndicator();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.outlineVariant),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _StepDot(number: '1', active: true),
-          _StepLine(active: true),
-          _StepDot(number: '2'),
-          _StepLine(),
-          _StepDot(number: '3'),
-        ],
-      ),
-    );
-  }
-}
-
-class _StepDot extends StatelessWidget {
-  const _StepDot({required this.number, this.active = false});
-
-  final String number;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: active ? colors.primary : colors.surfaceContainerHighest,
-        border: Border.all(
-          color: active ? colors.primary : colors.outlineVariant,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        number,
-        style: AppTypography.caption.copyWith(
-          color: active ? colors.onPrimary : colors.onSurfaceVariant,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _StepLine extends StatelessWidget {
-  const _StepLine({this.active = false});
-
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
-    return Container(
-      width: 28,
-      height: 2,
-      color: active ? colors.primary : colors.outlineVariant,
-    );
-  }
-}
-
 // ============================================================
+
 // EMPTY UPLOAD PANEL
+
 // ============================================================
 
 class _EmptyAnalyzePanel extends StatelessWidget {
@@ -619,7 +665,9 @@ class _EmptyAnalyzePanel extends StatelessWidget {
 
     final uploadPanel = _UploadPanel(
       loading: imageProvider.loading,
+
       onChoose: state?._chooseImage,
+
       onCapture: state?._captureImage,
     );
 
@@ -633,8 +681,10 @@ class _EmptyAnalyzePanel extends StatelessWidget {
 
         Transform.translate(
           offset: Offset(0, -overlap),
+
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+
             child: uploadPanel,
           ),
         ),
@@ -650,15 +700,21 @@ class _AbacaVisualPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
+
       height: 300,
+
       child: Container(
         clipBehavior: Clip.antiAlias,
+
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(18)),
+
         child: Stack(
           fit: StackFit.expand,
+
           children: [
             Image.asset(
               'assets/images/abakascan_auth_hero.png',
+
               fit: BoxFit.cover,
             ),
 
@@ -666,10 +722,14 @@ class _AbacaVisualPanel extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
+
                   end: Alignment.bottomRight,
+
                   colors: [
                     Color(0xDB0F3D2E),
+
                     Color(0xA80F3D2E),
+
                     Color(0x280F3D2E),
                   ],
                 ),
@@ -684,8 +744,10 @@ class _AbacaVisualPanel extends StatelessWidget {
 
             Padding(
               padding: const EdgeInsets.all(22),
+
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+
                 children: [
                   const _Brand(),
 
@@ -693,9 +755,12 @@ class _AbacaVisualPanel extends StatelessWidget {
 
                   Text(
                     'See the quality\nin every fiber.',
+
                     style: AppTypography.pageTitle.copyWith(
                       color: Colors.white,
+
                       fontSize: 28,
+
                       height: 1.04,
                     ),
                   ),
@@ -704,9 +769,12 @@ class _AbacaVisualPanel extends StatelessWidget {
 
                   Text(
                     '',
+
                     style: AppTypography.label.copyWith(
                       color: AppColors.fiberBeige,
+
                       fontSize: 9,
+
                       letterSpacing: 1.7,
                     ),
                   ),
@@ -723,13 +791,16 @@ class _AbacaVisualPanel extends StatelessWidget {
 class _UploadPanel extends StatelessWidget {
   const _UploadPanel({
     required this.loading,
+
     required this.onChoose,
+
     required this.onCapture,
   });
 
   final bool loading;
 
   final VoidCallback? onChoose;
+
   final VoidCallback? onCapture;
 
   @override
@@ -738,12 +809,18 @@ class _UploadPanel extends StatelessWidget {
 
     return Container(
       width: double.infinity,
+
       constraints: const BoxConstraints(minHeight: 330),
+
       padding: const EdgeInsets.all(24),
+
       decoration: BoxDecoration(
         color: colors.surface,
+
         borderRadius: BorderRadius.circular(22),
+
         border: Border.all(color: colors.outlineVariant),
+
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(
@@ -751,25 +828,36 @@ class _UploadPanel extends StatelessWidget {
                   ? 0.18
                   : 0.025,
             ),
+
             blurRadius: 20,
+
             offset: const Offset(0, 8),
           ),
         ],
       ),
+
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+
         children: [
           Container(
             width: 82,
+
             height: 82,
+
             decoration: BoxDecoration(
               color: colors.primaryContainer,
+
               shape: BoxShape.circle,
             ),
+
             alignment: Alignment.center,
+
             child: Icon(
               Icons.add_photo_alternate_outlined,
+
               color: colors.primary,
+
               size: 35,
             ),
           ),
@@ -778,9 +866,12 @@ class _UploadPanel extends StatelessWidget {
 
           Text(
             'Add Fiber Image',
+
             textAlign: TextAlign.center,
+
             style: AppTypography.sectionTitle.copyWith(
               fontSize: 22,
+
               color: colors.onSurface,
             ),
           ),
@@ -789,11 +880,15 @@ class _UploadPanel extends StatelessWidget {
 
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
+
             child: Text(
               'Upload a clear JPG, JPEG, or PNG image of the abaca fiber you want to classify.',
+
               textAlign: TextAlign.center,
+
               style: AppTypography.bodySecondary.copyWith(
                 height: 1.55,
+
                 color: colors.onSurfaceVariant,
               ),
             ),
@@ -803,18 +898,26 @@ class _UploadPanel extends StatelessWidget {
 
           Container(
             width: double.infinity,
+
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 22),
+
             decoration: BoxDecoration(
               color: colors.surfaceContainerHighest,
+
               borderRadius: BorderRadius.circular(18),
+
               border: Border.all(color: colors.outlineVariant),
             ),
+
             child: Column(
               mainAxisSize: MainAxisSize.min,
+
               children: [
                 Icon(
                   Icons.cloud_upload_outlined,
+
                   size: 30,
+
                   color: colors.onSurfaceVariant,
                 ),
 
@@ -824,9 +927,12 @@ class _UploadPanel extends StatelessWidget {
                   kIsWeb
                       ? 'Choose an image from your device'
                       : 'Choose how you want to add your image',
+
                   textAlign: TextAlign.center,
+
                   style: AppTypography.bodySecondary.copyWith(
                     color: colors.onSurface,
+
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -836,27 +942,38 @@ class _UploadPanel extends StatelessWidget {
                 if (loading)
                   const SizedBox(
                     width: 30,
+
                     height: 30,
+
                     child: CircularProgressIndicator(strokeWidth: 2.5),
                   )
                 else if (kIsWeb)
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 280),
+
                     child: SizedBox(
                       width: double.infinity,
+
                       height: 52,
+
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primaryDark,
+
                           foregroundColor: Colors.white,
+
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
+
                         onPressed: onChoose,
+
                         icon: const Icon(Icons.upload_file_outlined, size: 20),
+
                         label: const Text(
                           'Upload Photo',
+
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
@@ -865,23 +982,32 @@ class _UploadPanel extends StatelessWidget {
                 else
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 340),
+
                     child: Column(
                       children: [
                         SizedBox(
                           width: double.infinity,
+
                           height: 52,
+
                           child: FilledButton.icon(
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.primaryDark,
+
                               foregroundColor: Colors.white,
+
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
                             ),
+
                             onPressed: onCapture,
+
                             icon: const Icon(Icons.camera_alt_outlined),
+
                             label: const Text(
                               'Capture Photo',
+
                               style: TextStyle(fontWeight: FontWeight.w700),
                             ),
                           ),
@@ -891,10 +1017,14 @@ class _UploadPanel extends StatelessWidget {
 
                         SizedBox(
                           width: double.infinity,
+
                           height: 50,
+
                           child: OutlinedButton.icon(
                             onPressed: onChoose,
+
                             icon: const Icon(Icons.photo_library_outlined),
+
                             label: const Text('Choose from Gallery'),
                           ),
                         ),
@@ -906,10 +1036,13 @@ class _UploadPanel extends StatelessWidget {
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+
                   children: [
                     Icon(
                       Icons.image_outlined,
+
                       size: 16,
+
                       color: colors.onSurfaceVariant,
                     ),
 
@@ -917,6 +1050,7 @@ class _UploadPanel extends StatelessWidget {
 
                     Text(
                       'JPG • JPEG • PNG',
+
                       style: AppTypography.caption.copyWith(
                         color: colors.onSurfaceVariant,
                       ),
@@ -933,7 +1067,9 @@ class _UploadPanel extends StatelessWidget {
 }
 
 // ============================================================
+
 // SELECTED IMAGE
+
 // ============================================================
 
 class _SelectedAnalyzePanel extends StatelessWidget {
@@ -957,12 +1093,17 @@ class _SelectedAnalyzePanel extends StatelessWidget {
 
     return Container(
       width: double.infinity,
+
       decoration: BoxDecoration(
         color: colors.surface,
+
         borderRadius: BorderRadius.circular(18),
+
         border: Border.all(color: colors.outlineVariant),
       ),
+
       clipBehavior: Clip.antiAlias,
+
       child: LayoutBuilder(
         builder: (context, constraints) {
           final stacked = compact || constraints.maxWidth < 840;
@@ -971,11 +1112,17 @@ class _SelectedAnalyzePanel extends StatelessWidget {
 
           final controls = _ImageControls(
             fileName: imageProvider.fileName,
+
             fromCamera: fromCamera,
+
             analyzing: classificationProvider.isAnalyzing,
+
             onAnalyze: screenState?._analyzeImage,
+
             onChoose: screenState?._chooseImage,
+
             onCapture: screenState?._captureImage,
+
             onRemove: screenState?._removeImage,
           );
 
@@ -985,8 +1132,10 @@ class _SelectedAnalyzePanel extends StatelessWidget {
 
           return SizedBox(
             height: 480,
+
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
+
               children: [
                 Expanded(flex: 6, child: preview),
 
@@ -1013,12 +1162,16 @@ class _ImagePreview extends StatelessWidget {
 
     return Container(
       color: colors.surfaceContainerHighest,
+
       constraints: const BoxConstraints(minHeight: 300),
+
       child: bytes == null
           ? Center(
               child: Icon(
                 Icons.broken_image_outlined,
+
                 size: 46,
+
                 color: colors.onSurfaceVariant,
               ),
             )
@@ -1030,22 +1183,32 @@ class _ImagePreview extends StatelessWidget {
 class _ImageControls extends StatelessWidget {
   const _ImageControls({
     required this.fileName,
+
     required this.fromCamera,
+
     required this.analyzing,
+
     required this.onAnalyze,
+
     required this.onChoose,
+
     required this.onCapture,
+
     required this.onRemove,
   });
 
   final String? fileName;
 
   final bool fromCamera;
+
   final bool analyzing;
 
   final VoidCallback? onAnalyze;
+
   final VoidCallback? onChoose;
+
   final VoidCallback? onCapture;
+
   final VoidCallback? onRemove;
 
   @override
@@ -1058,17 +1221,24 @@ class _ImageControls extends StatelessWidget {
 
         return Padding(
           padding: const EdgeInsets.all(22),
+
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             mainAxisSize: boundedHeight ? MainAxisSize.max : MainAxisSize.min,
+
             children: [
               Container(
                 width: 46,
+
                 height: 46,
+
                 decoration: BoxDecoration(
                   color: colors.primaryContainer,
+
                   shape: BoxShape.circle,
                 ),
+
                 child: Icon(Icons.check_rounded, color: colors.primary),
               ),
 
@@ -1076,8 +1246,10 @@ class _ImageControls extends StatelessWidget {
 
               Text(
                 'Image Ready',
+
                 style: AppTypography.sectionTitle.copyWith(
                   fontSize: 22,
+
                   color: colors.onSurface,
                 ),
               ),
@@ -1086,8 +1258,10 @@ class _ImageControls extends StatelessWidget {
 
               Text(
                 'Review your image before starting classification.',
+
                 style: AppTypography.bodySecondary.copyWith(
                   height: 1.5,
+
                   color: colors.onSurfaceVariant,
                 ),
               ),
@@ -1097,16 +1271,22 @@ class _ImageControls extends StatelessWidget {
 
                 Container(
                   width: double.infinity,
+
                   padding: const EdgeInsets.all(12),
+
                   decoration: BoxDecoration(
                     color: colors.surfaceContainerHighest,
+
                     borderRadius: BorderRadius.circular(10),
                   ),
+
                   child: Row(
                     children: [
                       Icon(
                         Icons.image_outlined,
+
                         size: 18,
+
                         color: colors.primary,
                       ),
 
@@ -1115,8 +1295,11 @@ class _ImageControls extends StatelessWidget {
                       Expanded(
                         child: Text(
                           fileName!,
+
                           maxLines: 1,
+
                           overflow: TextOverflow.ellipsis,
+
                           style: AppTypography.caption.copyWith(
                             color: colors.onSurface,
                           ),
@@ -1131,14 +1314,20 @@ class _ImageControls extends StatelessWidget {
 
               SizedBox(
                 width: double.infinity,
+
                 height: 52,
+
                 child: FilledButton.icon(
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primaryDark,
+
                     foregroundColor: Colors.white,
                   ),
+
                   onPressed: analyzing ? null : onAnalyze,
+
                   icon: const Icon(Icons.auto_awesome_outlined),
+
                   label: const Text('Analyze Fiber'),
                 ),
               ),
@@ -1147,18 +1336,22 @@ class _ImageControls extends StatelessWidget {
 
               SizedBox(
                 width: double.infinity,
+
                 height: 48,
+
                 child: OutlinedButton.icon(
                   onPressed: analyzing
                       ? null
                       : fromCamera && !kIsWeb
                       ? onCapture
                       : onChoose,
+
                   icon: Icon(
                     fromCamera && !kIsWeb
                         ? Icons.camera_alt_outlined
                         : Icons.photo_library_outlined,
                   ),
+
                   label: Text(
                     fromCamera && !kIsWeb ? 'Retake Photo' : 'Replace Image',
                   ),
@@ -1170,10 +1363,14 @@ class _ImageControls extends StatelessWidget {
 
                 SizedBox(
                   width: double.infinity,
+
                   height: 48,
+
                   child: OutlinedButton.icon(
                     onPressed: analyzing ? null : onCapture,
+
                     icon: const Icon(Icons.camera_alt_outlined),
+
                     label: const Text('Capture New Photo'),
                   ),
                 ),
@@ -1183,10 +1380,14 @@ class _ImageControls extends StatelessWidget {
 
               SizedBox(
                 width: double.infinity,
+
                 child: TextButton.icon(
                   style: TextButton.styleFrom(foregroundColor: colors.error),
+
                   onPressed: analyzing ? null : onRemove,
+
                   icon: const Icon(Icons.delete_outline),
+
                   label: const Text('Remove Image'),
                 ),
               ),
@@ -1199,7 +1400,9 @@ class _ImageControls extends StatelessWidget {
 }
 
 // ============================================================
+
 // GUIDELINES
+
 // ============================================================
 
 class _PhotoGuidelines extends StatelessWidget {
@@ -1212,30 +1415,41 @@ class _PhotoGuidelines extends StatelessWidget {
     const items = [
       (
         Icons.light_mode_outlined,
+
         'Good Lighting',
+
         'Use enough light so visible fiber details are clear.',
       ),
+
       (
         Icons.center_focus_strong_outlined,
+
         'Keep Fiber Visible',
+
         'Keep the abaca fiber centered and unobstructed.',
       ),
+
       (
         Icons.blur_off_outlined,
+
         'Avoid Blur',
+
         'Use a steady and clearly focused photograph.',
       ),
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+
       children: [
         Row(
           children: [
             Text(
               'Before you submit',
+
               style: AppTypography.sectionTitle.copyWith(
                 fontSize: 18,
+
                 color: colors.onSurface,
               ),
             ),
@@ -1244,9 +1458,12 @@ class _PhotoGuidelines extends StatelessWidget {
 
             Text(
               'PHOTO GUIDE',
+
               style: AppTypography.label.copyWith(
                 color: colors.primary,
+
                 fontSize: 9,
+
                 letterSpacing: 1.5,
               ),
             ),
@@ -1263,7 +1480,9 @@ class _PhotoGuidelines extends StatelessWidget {
                   for (var index = 0; index < items.length; index++) ...[
                     _GuidelineCard(
                       icon: items[index].$1,
+
                       title: items[index].$2,
+
                       description: items[index].$3,
                     ),
 
@@ -1279,7 +1498,9 @@ class _PhotoGuidelines extends StatelessWidget {
                   Expanded(
                     child: _GuidelineCard(
                       icon: items[index].$1,
+
                       title: items[index].$2,
+
                       description: items[index].$3,
                     ),
                   ),
@@ -1298,13 +1519,16 @@ class _PhotoGuidelines extends StatelessWidget {
 class _GuidelineCard extends StatelessWidget {
   const _GuidelineCard({
     required this.icon,
+
     required this.title,
+
     required this.description,
   });
 
   final IconData icon;
 
   final String title;
+
   final String description;
 
   @override
@@ -1313,20 +1537,28 @@ class _GuidelineCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(15),
+
       decoration: BoxDecoration(
         color: colors.surface,
+
         borderRadius: BorderRadius.circular(13),
+
         border: Border.all(color: colors.outlineVariant),
       ),
+
       child: Row(
         children: [
           Container(
             width: 42,
+
             height: 42,
+
             decoration: BoxDecoration(
               color: colors.primaryContainer,
+
               shape: BoxShape.circle,
             ),
+
             child: Icon(icon, color: colors.primary, size: 20),
           ),
 
@@ -1335,11 +1567,14 @@ class _GuidelineCard extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+
               children: [
                 Text(
                   title,
+
                   style: AppTypography.cardTitle.copyWith(
                     fontSize: 13,
+
                     color: colors.onSurface,
                   ),
                 ),
@@ -1348,8 +1583,10 @@ class _GuidelineCard extends StatelessWidget {
 
                 Text(
                   description,
+
                   style: AppTypography.caption.copyWith(
                     height: 1.4,
+
                     color: colors.onSurfaceVariant,
                   ),
                 ),
@@ -1363,7 +1600,9 @@ class _GuidelineCard extends StatelessWidget {
 }
 
 // ============================================================
+
 // ERRORS
+
 // ============================================================
 
 class _ImageErrorPanel extends StatelessWidget {
@@ -1375,7 +1614,9 @@ class _ImageErrorPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return _ErrorBox(
       title: 'Unable to use this image',
+
       message: message,
+
       onClose: () {
         context.read<ImageSelectionProvider>().clearError();
       },
@@ -1394,14 +1635,18 @@ class _ClassificationError extends StatelessWidget {
 
     return _ErrorBox(
       title: 'Unable to classify image',
+
       message:
           classification.error ??
           'The classification request failed. Please try again.',
+
       action: TextButton.icon(
         onPressed: classification.isAnalyzing
             ? null
             : screenState?._analyzeImage,
+
         icon: const Icon(Icons.refresh_rounded),
+
         label: const Text('Retry'),
       ),
     );
@@ -1411,15 +1656,20 @@ class _ClassificationError extends StatelessWidget {
 class _ErrorBox extends StatelessWidget {
   const _ErrorBox({
     required this.title,
+
     required this.message,
+
     this.onClose,
+
     this.action,
   });
 
   final String title;
+
   final String message;
 
   final VoidCallback? onClose;
+
   final Widget? action;
 
   @override
@@ -1428,14 +1678,20 @@ class _ErrorBox extends StatelessWidget {
 
     return Container(
       width: double.infinity,
+
       padding: const EdgeInsets.all(15),
+
       decoration: BoxDecoration(
         color: colors.error.withValues(alpha: 0.06),
+
         borderRadius: BorderRadius.circular(12),
+
         border: Border.all(color: colors.error.withValues(alpha: 0.22)),
       ),
+
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
           Icon(Icons.error_outline, color: colors.error, size: 21),
 
@@ -1444,11 +1700,14 @@ class _ErrorBox extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+
               children: [
                 Text(
                   title,
+
                   style: AppTypography.cardTitle.copyWith(
                     fontSize: 13,
+
                     color: colors.onSurface,
                   ),
                 ),
@@ -1457,6 +1716,7 @@ class _ErrorBox extends StatelessWidget {
 
                 Text(
                   message,
+
                   style: AppTypography.bodySecondary.copyWith(
                     color: colors.error,
                   ),
@@ -1470,6 +1730,7 @@ class _ErrorBox extends StatelessWidget {
           if (onClose != null)
             IconButton(
               onPressed: onClose,
+
               icon: const Icon(Icons.close_rounded, size: 18),
             ),
         ],
@@ -1479,7 +1740,9 @@ class _ErrorBox extends StatelessWidget {
 }
 
 // ============================================================
+
 // ANALYZING OVERLAY
+
 // ============================================================
 
 class _AnalysisOverlay extends StatelessWidget {
@@ -1492,37 +1755,54 @@ class _AnalysisOverlay extends StatelessWidget {
     return Positioned.fill(
       child: Container(
         color: AppColors.primaryDark.withValues(alpha: 0.76),
+
         alignment: Alignment.center,
+
         child: Container(
           width: 340,
+
           margin: const EdgeInsets.all(20),
+
           padding: const EdgeInsets.all(26),
+
           decoration: BoxDecoration(
             color: colors.surface,
+
             borderRadius: BorderRadius.circular(20),
+
             border: Border.all(color: colors.outlineVariant),
           ),
+
           child: Column(
             mainAxisSize: MainAxisSize.min,
+
             children: [
               Stack(
                 alignment: Alignment.center,
+
                 children: [
                   const SizedBox(
                     width: 68,
+
                     height: 68,
+
                     child: CircularProgressIndicator(strokeWidth: 3),
                   ),
 
                   Container(
                     width: 48,
+
                     height: 48,
+
                     decoration: BoxDecoration(
                       color: colors.primaryContainer,
+
                       shape: BoxShape.circle,
                     ),
+
                     child: Icon(
                       Icons.auto_awesome_outlined,
+
                       color: colors.primary,
                     ),
                   ),
@@ -1533,9 +1813,12 @@ class _AnalysisOverlay extends StatelessWidget {
 
               Text(
                 'Analyzing your fiber',
+
                 textAlign: TextAlign.center,
+
                 style: AppTypography.sectionTitle.copyWith(
                   fontSize: 20,
+
                   color: colors.onSurface,
                 ),
               ),
@@ -1544,7 +1827,9 @@ class _AnalysisOverlay extends StatelessWidget {
 
               Text(
                 'ABAKASCAN is processing the selected image. Please keep this screen open.',
+
                 textAlign: TextAlign.center,
+
                 style: AppTypography.bodySecondary.copyWith(
                   color: colors.onSurfaceVariant,
                 ),
@@ -1558,14 +1843,14 @@ class _AnalysisOverlay extends StatelessWidget {
 }
 
 // ============================================================
-// DESKTOP SIDEBAR
-// ============================================================
 
+// DESKTOP SIDEBAR
+
+// ============================================================
 class _AnalyzeSidebar extends StatelessWidget {
   const _AnalyzeSidebar({
     required this.onDashboard,
     required this.onHistory,
-    required this.onSamples,
     required this.onReports,
     required this.onSettings,
     required this.onAbout,
@@ -1574,19 +1859,11 @@ class _AnalyzeSidebar extends StatelessWidget {
   });
 
   final VoidCallback onDashboard;
-
   final Future<void> Function() onHistory;
-
-  final Future<void> Function() onSamples;
-
   final Future<void> Function() onReports;
-
   final Future<void> Function() onSettings;
-
   final Future<void> Function() onAbout;
-
   final Future<void> Function() onLogout;
-
   final bool disabled;
 
   @override
@@ -1594,65 +1871,83 @@ class _AnalyzeSidebar extends StatelessWidget {
     return Container(
       color: AppColors.primaryDark,
       padding: const EdgeInsets.fromLTRB(14, 26, 14, 18),
-      child: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 10),
-            child: _Brand(),
-          ),
-
-          const SizedBox(height: 34),
-
-          _SidebarItem(
-            icon: Icons.dashboard_outlined,
-            label: 'Dashboard',
-            onTap: disabled ? null : onDashboard,
-          ),
-
-          const _SidebarItem(
-            icon: Icons.camera_alt_outlined,
-            label: 'Analyze',
-            selected: true,
-          ),
-
-          _SidebarItem(
-            icon: Icons.history_rounded,
-            label: 'History',
-            onTap: disabled ? null : onHistory,
-          ),
-
-          _SidebarItem(
-            icon: Icons.inventory_2_outlined,
-            label: 'Samples',
-            onTap: disabled ? null : onSamples,
-          ),
-
-          _SidebarItem(
-            icon: Icons.bar_chart_rounded,
-            label: 'Reports',
-            onTap: disabled ? null : onReports,
-          ),
-
-          _SidebarItem(
-            icon: Icons.settings_outlined,
-            label: 'Settings',
-            onTap: disabled ? null : onSettings,
-          ),
-
-          const Spacer(),
-
-          _SidebarItem(
-            icon: Icons.info_outline_rounded,
-            label: 'About',
-            onTap: disabled ? null : onAbout,
-          ),
-
-          _SidebarItem(
-            icon: Icons.logout_rounded,
-            label: 'Log Out',
-            onTap: disabled ? null : onLogout,
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Column(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: _Brand(),
+                    ),
+                    const SizedBox(height: 34),
+                    _SidebarItem(
+                      icon: Icons.dashboard_outlined,
+                      label: 'Dashboard',
+                      onTap: disabled ? null : onDashboard,
+                    ),
+                    const _SidebarItem(
+                      icon: Icons.camera_alt_outlined,
+                      label: 'Analyze',
+                      selected: true,
+                    ),
+                    _SidebarItem(
+                      icon: Icons.history_rounded,
+                      label: 'History',
+                      onTap: disabled ? null : onHistory,
+                    ),
+                    _SidebarItem(
+                      icon: Icons.bar_chart_rounded,
+                      label: 'Reports',
+                      onTap: disabled ? null : onReports,
+                    ),
+                    _SidebarItem(
+                      icon: Icons.settings_outlined,
+                      label: 'Settings',
+                      onTap: disabled ? null : onSettings,
+                    ),
+                    const Spacer(),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 120,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.asset(
+                              'assets/images/abakascan_auth_hero.png',
+                              fit: BoxFit.cover,
+                            ),
+                            Container(
+                              color: AppColors.primaryDark.withValues(
+                                alpha: 0.48,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _SidebarItem(
+                      icon: Icons.info_outline_rounded,
+                      label: 'About',
+                      onTap: disabled ? null : onAbout,
+                    ),
+                    _SidebarItem(
+                      icon: Icons.logout_rounded,
+                      label: 'Log Out',
+                      onTap: disabled ? null : onLogout,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -1661,12 +1956,16 @@ class _AnalyzeSidebar extends StatelessWidget {
 class _SidebarItem extends StatelessWidget {
   const _SidebarItem({
     required this.icon,
+
     required this.label,
+
     this.selected = false,
+
     this.onTap,
   });
 
   final IconData icon;
+
   final String label;
 
   final bool selected;
@@ -1683,14 +1982,20 @@ class _SidebarItem extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 7),
+
       child: Material(
         color: selected ? AppColors.primary : Colors.transparent,
+
         borderRadius: BorderRadius.circular(9),
+
         child: InkWell(
           onTap: onTap,
+
           borderRadius: BorderRadius.circular(9),
+
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+
             child: Row(
               children: [
                 Icon(icon, size: 19, color: foreground),
@@ -1700,9 +2005,12 @@ class _SidebarItem extends StatelessWidget {
                 Expanded(
                   child: Text(
                     label,
+
                     style: AppTypography.bodySecondary.copyWith(
                       color: foreground,
+
                       fontSize: 13,
+
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
@@ -1717,7 +2025,9 @@ class _SidebarItem extends StatelessWidget {
 }
 
 // ============================================================
+
 // BRAND / DECORATION
+
 // ============================================================
 
 class _Brand extends StatelessWidget {
@@ -1727,6 +2037,7 @@ class _Brand extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
+
       children: [
         const Icon(Icons.eco_outlined, color: AppColors.fiberBeige, size: 24),
 
@@ -1734,10 +2045,14 @@ class _Brand extends StatelessWidget {
 
         Text(
           'ABAKASCAN',
+
           style: AppTypography.label.copyWith(
             color: Colors.white,
+
             fontSize: 14,
+
             fontWeight: FontWeight.w700,
+
             letterSpacing: 2.2,
           ),
         ),
@@ -1758,15 +2073,21 @@ class _FiberLinePainter extends CustomPainter {
         ..moveTo(-20, y)
         ..cubicTo(
           size.width * 0.25,
+
           y + 45,
+
           size.width * 0.68,
+
           y - 38,
+
           size.width + 30,
+
           y + 8,
         );
 
       canvas.drawPath(
         path,
+
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = index % 3 == 0 ? 1.1 : 0.7

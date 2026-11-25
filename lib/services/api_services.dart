@@ -1,31 +1,47 @@
 import 'dart:async';
+
 import 'dart:convert';
+
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
 import '../models/admin_models.dart';
+
 import '../models/models.dart';
 
 // ============================================================
+
 // API CONFIGURATION
+
 // ============================================================
 
 class ApiConfig {
   const ApiConfig._();
 
   /// Default:
+
   /// Flutter Web / Windows on the same computer as FastAPI.
+
   ///
+
   /// Override it when running on another device using:
+
   ///
+
   /// flutter run --dart-define=API_BASE_URL=http://YOUR_IP:8000
+
   ///
+
   /// Android Emulator example:
+
   ///
+
   /// flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000
+
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
+
     defaultValue: 'http://127.0.0.1:8000',
   );
 
@@ -33,14 +49,19 @@ class ApiConfig {
 }
 
 // ============================================================
+
 // API EXCEPTION
+
 // ============================================================
 
 class ApiException implements Exception {
-  const ApiException({required this.message, this.statusCode});
+  const ApiException({required this.message, this.statusCode, this.code});
 
   final String message;
+
   final int? statusCode;
+
+  final String? code;
 
   @override
   String toString() {
@@ -49,15 +70,19 @@ class ApiException implements Exception {
 }
 
 // ============================================================
+
 // API CLIENT
+
 // ============================================================
 
 class ApiClient {
   ApiClient({required String baseUrl, http.Client? client})
     : _baseUrl = _normalizeBaseUrl(baseUrl),
+
       _client = client ?? http.Client();
 
   final String _baseUrl;
+
   final http.Client _client;
 
   String get baseUrl => _baseUrl;
@@ -71,7 +96,9 @@ class ApiClient {
   Map<String, String> _headers({String? token, bool json = true}) {
     return {
       'Accept': 'application/json',
+
       if (json) 'Content-Type': 'application/json',
+
       if (token != null && token.trim().isNotEmpty)
         'Authorization': 'Bearer ${token.trim()}',
     };
@@ -107,10 +134,15 @@ class ApiClient {
     if (data is Map<String, dynamic>) {
       final possibleCollections = [
         data['items'],
+
         data['results'],
+
         data['records'],
+
         data['data'],
+
         data['users'],
+
         data['classifications'],
       ];
 
@@ -131,7 +163,9 @@ class ApiClient {
       final response = await _client
           .post(
             _uri(path),
+
             headers: _headers(token: token),
+
             body: body == null ? null : jsonEncode(body),
           )
           .timeout(ApiConfig.timeout);
@@ -152,10 +186,15 @@ class ApiClient {
 
   Future<dynamic> multipartPost(
     String path, {
+
     required Uint8List bytes,
+
     required String fileName,
+
     required String fieldName,
+
     String? token,
+
     Map<String, String>? fields,
   }) async {
     try {
@@ -232,8 +271,13 @@ class ApiClient {
       return data;
     }
 
+    final detail = data is Map<String, dynamic> ? data['detail'] : null;
+
     throw ApiException(
       statusCode: statusCode,
+
+      code: detail is Map<String, dynamic> ? detail['code']?.toString() : null,
+
       message: _extractErrorMessage(data, statusCode),
     );
   }
@@ -243,6 +287,14 @@ class ApiClient {
       final candidates = [data['detail'], data['message'], data['error']];
 
       for (final candidate in candidates) {
+        if (candidate is Map<String, dynamic>) {
+          final message = candidate['message'];
+
+          if (message is String && message.trim().isNotEmpty) {
+            return message.trim();
+          }
+        }
+
         if (candidate is String && candidate.trim().isNotEmpty) {
           return candidate.trim();
         }
@@ -300,7 +352,9 @@ class ApiClient {
 }
 
 // ============================================================
+
 // AUTH SERVICE
+
 // ============================================================
 
 class AuthService {
@@ -345,6 +399,7 @@ class AuthService {
   ) async {
     final data = await _apiClient.post(
       '/resend-verification',
+
       body: request.toJson(),
     );
 
@@ -362,6 +417,7 @@ class AuthService {
   ) async {
     final data = await _apiClient.post(
       '/forgot-password',
+
       body: request.toJson(),
     );
 
@@ -379,6 +435,7 @@ class AuthService {
   ) async {
     final data = await _apiClient.post(
       '/reset-password',
+
       body: request.toJson(),
     );
 
@@ -417,7 +474,9 @@ class AuthService {
 }
 
 // ============================================================
+
 // CLASSIFICATION SERVICE
+
 // ============================================================
 
 class ClassificationService {
@@ -427,16 +486,45 @@ class ClassificationService {
 
   Future<ClassificationResultModel> classify({
     required String token,
+
     required Uint8List imageBytes,
+
     required String fileName,
   }) async {
-    final data = await _apiClient.multipartPost(
-      '/classifications',
-      token: token,
-      bytes: imageBytes,
-      fileName: fileName,
-      fieldName: 'image',
-    );
+    dynamic data;
+
+    try {
+      data = await _apiClient.multipartPost(
+        '/classifications',
+
+        token: token,
+
+        bytes: imageBytes,
+
+        fileName: fileName,
+
+        fieldName: 'image',
+      );
+    } on ApiException catch (error) {
+      if (error.statusCode == 400 &&
+          (error.code == 'unidentified_object' ||
+              error.code == 'multiple_bundles' ||
+              error.code == 'uncertain_grade')) {
+        return ClassificationResultModel(
+          predictedGrade: '',
+
+          confidence: 0,
+
+          savedToHistory: false,
+
+          detectionStatus: error.code!,
+
+          detectionMessage: error.message,
+        );
+      }
+
+      rethrow;
+    }
 
     if (data is! Map<String, dynamic>) {
       throw const ApiException(
@@ -446,7 +534,9 @@ class ClassificationService {
 
     final resultData = _unwrapMap(data, const [
       'classification',
+
       'result',
+
       'data',
     ]);
 
@@ -456,6 +546,7 @@ class ClassificationService {
   Future<List<ClassificationRecordModel>> getHistory(String token) async {
     final data = await _apiClient.getCollection(
       '/classifications',
+
       token: token,
     );
 
@@ -467,10 +558,12 @@ class ClassificationService {
 
   Future<ClassificationRecordModel> getClassification({
     required String token,
+
     required String classificationId,
   }) async {
     final data = await _apiClient.get(
       '/classifications/$classificationId',
+
       token: token,
     );
 
@@ -482,7 +575,9 @@ class ClassificationService {
 
     final recordData = _unwrapMap(data, const [
       'classification',
+
       'record',
+
       'data',
     ]);
 
@@ -491,6 +586,7 @@ class ClassificationService {
 
   Future<void> deleteClassification({
     required String token,
+
     required String classificationId,
   }) async {
     await _apiClient.delete('/classifications/$classificationId', token: token);
@@ -498,7 +594,9 @@ class ClassificationService {
 }
 
 // ============================================================
+
 // ADMIN SERVICE
+
 // ============================================================
 
 class AdminService {
@@ -531,11 +629,14 @@ class AdminService {
 
   Future<AdminUserModel?> createAdministrator({
     required String token,
+
     required CreateAdminRequest request,
   }) async {
     final data = await _apiClient.post(
       '/admin/admins',
+
       token: token,
+
       body: request.toJson(),
     );
 
@@ -560,6 +661,7 @@ class AdminService {
   ) async {
     final data = await _apiClient.getCollection(
       '/admin/classifications',
+
       token: token,
     );
 
@@ -571,11 +673,14 @@ class AdminService {
 }
 
 // ============================================================
+
 // RESPONSE HELPERS
+
 // ============================================================
 
 Map<String, dynamic> _unwrapMap(
   Map<String, dynamic> source,
+
   List<String> possibleKeys,
 ) {
   for (final key in possibleKeys) {

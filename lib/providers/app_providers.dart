@@ -1174,6 +1174,13 @@ class HistoryProvider extends ChangeNotifier {
 
   final Set<String> _deletingIds = {};
 
+  // Reuse the shared history when changing sections. Refresh always reloads.
+  static const _historyCacheLifetime = Duration(seconds: 30);
+  String? _historyToken;
+  DateTime? _historyLoadedAt;
+  Future<bool>? _historyRequest;
+  int _historyGeneration = 0;
+
   HistoryStatus _status = HistoryStatus.initial;
 
   String? _error;
@@ -1220,14 +1227,17 @@ class HistoryProvider extends ChangeNotifier {
       return false;
     }
 
-    _status = HistoryStatus.loading;
+    _useHistoryToken(token);
+    final pending = _historyRequest;
+    if (pending != null) return pending;
 
-    _error = null;
-    _errorStatusCode = null;
-
-    notifyListeners();
-
-    return _fetchHistory(token: token);
+    final loadedAt = _historyLoadedAt;
+    if (_status == HistoryStatus.success &&
+        loadedAt != null &&
+        DateTime.now().difference(loadedAt) < _historyCacheLifetime) {
+      return true;
+    }
+    return _requestHistory(token: token);
   }
 
   Future<bool> refreshHistory({required String token}) async {
@@ -1245,23 +1255,50 @@ class HistoryProvider extends ChangeNotifier {
       return false;
     }
 
-    if (_records.isEmpty) {
-      _status = HistoryStatus.loading;
+    _useHistoryToken(token);
+    final generation = _historyGeneration;
+    final pending = _historyRequest;
+    if (pending != null) {
+      // A refresh after saving must fetch again, not reuse an older snapshot.
+      await pending;
+      if (generation != _historyGeneration) return false;
     }
-
-    _error = null;
-    _errorStatusCode = null;
-
-    notifyListeners();
-
-    return _fetchHistory(token: token);
+    return _requestHistory(token: token);
   }
 
-  Future<bool> _fetchHistory({required String token}) async {
+  void _useHistoryToken(String token) {
+    if (_historyToken == token) return;
+    if (_historyToken != null) reset();
+    _historyToken = token;
+  }
+
+  Future<bool> _requestHistory({required String token}) {
+    // Several pages may request history during the same navigation.
+    final pending = _historyRequest;
+    if (pending != null) return pending;
+
+    if (_records.isEmpty) _status = HistoryStatus.loading;
+    _error = null;
+    _errorStatusCode = null;
+    final generation = _historyGeneration;
+    final request = _fetchHistory(token: token, generation: generation);
+    _historyRequest = request;
+    notifyListeners();
+    return request.whenComplete(() {
+      if (generation == _historyGeneration) _historyRequest = null;
+    });
+  }
+
+  Future<bool> _fetchHistory({
+    required String token,
+    required int generation,
+  }) async {
     try {
       final dynamic service = _classificationService;
 
       final dynamic result = await service.getHistory(token);
+
+      if (generation != _historyGeneration) return false;
 
       if (result is List<ClassificationRecordModel>) {
         _records
@@ -1277,6 +1314,7 @@ class HistoryProvider extends ChangeNotifier {
 
       _sortRecords();
 
+      _historyLoadedAt = DateTime.now();
       _status = HistoryStatus.success;
 
       _error = null;
@@ -1286,6 +1324,7 @@ class HistoryProvider extends ChangeNotifier {
 
       return true;
     } catch (error) {
+      if (generation != _historyGeneration) return false;
       _error = _friendlyError(
         error,
         fallback: 'Unable to load your classification history.',
@@ -1350,6 +1389,11 @@ class HistoryProvider extends ChangeNotifier {
         classificationId: normalizedId,
       );
 
+      // A response started before deletion must not restore the deleted row.
+      _historyGeneration++;
+      _historyRequest = null;
+      _historyLoadedAt = null;
+
       _records.removeWhere((record) => record.id == normalizedId);
 
       _deletingIds.remove(normalizedId);
@@ -1393,6 +1437,11 @@ class HistoryProvider extends ChangeNotifier {
   }
 
   void reset() {
+    // Late responses from a previous session must not repopulate this cache.
+    _historyGeneration++;
+    _historyToken = null;
+    _historyLoadedAt = null;
+    _historyRequest = null;
     _records.clear();
     _deletingIds.clear();
 
