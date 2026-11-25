@@ -9,3 +9,4 @@ email-validator
 PyJWT
 python-multipart
 Pillow
+ultralytics==8.4.203

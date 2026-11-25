@@ -9,6 +9,7 @@ from sqlalchemy import (
     String,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.database import Base
@@ -40,6 +41,11 @@ class ClassificationRecord(Base):
     confidence: Mapped[float] = mapped_column(
         Float,
         nullable=False,
+    )
+
+    grade_scores: Mapped[dict[str, float] | None] = mapped_column(
+        JSONB(none_as_null=True),
+        nullable=True,
     )
 
     model_name: Mapped[str | None] = mapped_column(

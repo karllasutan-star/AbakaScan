@@ -1,15 +1,3 @@
-from app.services.classification_service import (
-    create_classification_record,
-    delete_classification_record,
-    get_user_classification,
-    get_user_classifications,
-)
-
-from app.services.inference_service import (
-    ModelNotReadyError,
-    predict_abaca_grade,
-)
-
 from fastapi import (
     APIRouter,
     Depends,
@@ -29,6 +17,7 @@ from app.schemas.classification import (
     ClassificationResponse,
 )
 from app.services.classification_service import (
+    create_classification_record,
     delete_classification_record,
     get_user_classification,
     get_user_classifications,
@@ -36,6 +25,11 @@ from app.services.classification_service import (
 from app.services.image_service import (
     ImageValidationError,
     validate_image,
+)
+from app.services.inference_service import (
+    BundleDetectionError,
+    ModelNotReadyError,
+    predict_abaca_grade,
 )
 
 
@@ -49,9 +43,7 @@ router = APIRouter(
 # AUTHORIZATION
 # ============================================================
 
-def require_regular_user(
-    current_user: User,
-) -> None:
+def require_regular_user(current_user: User) -> None:
     if current_user.role.upper() != "USER":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -66,19 +58,15 @@ def require_regular_user(
 # BUILD API RESPONSE
 # ============================================================
 
-def build_record_response(
-    record,
-) -> ClassificationRecordResponse:
+def build_record_response(record) -> ClassificationRecordResponse:
     return ClassificationRecordResponse(
         classification_id=record.classification_id,
         predicted_grade=record.predicted_grade,
         confidence=record.confidence,
         created_at=record.created_at,
-        image_url=(
-            f"/classifications/"
-            f"{record.classification_id}/image"
-        ),
+        image_url=f"/classifications/{record.classification_id}/image",
         model_name=record.model_name,
+        grade_scores=record.grade_scores,
     )
 
 
@@ -96,19 +84,14 @@ async def classify_image(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    require_regular_user(
-        current_user,
-    )
+    require_regular_user(current_user)
 
     image_bytes = await image.read()
 
     try:
         validated_image = validate_image(
             image_bytes=image_bytes,
-            file_name=(
-                image.filename
-                or "uploaded_image"
-            ),
+            file_name=image.filename or "uploaded_image",
             content_type=image.content_type,
         )
 
@@ -123,9 +106,7 @@ async def classify_image(
     # ========================================================
 
     try:
-        prediction = predict_abaca_grade(
-            validated_image.image,
-        )
+        prediction = predict_abaca_grade(validated_image.image)
 
     except ModelNotReadyError as error:
         raise HTTPException(
@@ -133,8 +114,27 @@ async def classify_image(
             detail=str(error),
         ) from error
 
+    except BundleDetectionError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": error.code,
+                "message": str(error),
+                "confidence": None,
+                "predicted_grade": None,
+                "grade_scores": None,
+                "saved_to_history": False,
+            },
+        ) from error
+
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="ABAKASCAN image analysis failed. Please try again.",
+        ) from error
+
     # ========================================================
-    # SAVE CLASSIFICATION
+    # SAVE CLASSIFICATION AND ALL THREE SCORES
     # ========================================================
 
     try:
@@ -145,15 +145,13 @@ async def classify_image(
             confidence=prediction.confidence,
             validated_image=validated_image,
             model_name=prediction.model_name,
+            grade_scores=prediction.grade_scores,
         )
 
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                "Unable to save the "
-                "classification result."
-            ),
+            detail="Unable to save the classification result.",
         ) from error
 
     # ========================================================
@@ -165,13 +163,12 @@ async def classify_image(
         predicted_grade=record.predicted_grade,
         confidence=record.confidence,
         created_at=record.created_at,
-        image_url=(
-            f"/classifications/"
-            f"{record.classification_id}/image"
-        ),
+        image_url=f"/classifications/{record.classification_id}/image",
         saved_to_history=True,
         model_name=record.model_name,
+        grade_scores=record.grade_scores,
     )
+
 
 # ============================================================
 # CLASSIFICATION HISTORY
@@ -185,9 +182,7 @@ def get_classification_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    require_regular_user(
-        current_user,
-    )
+    require_regular_user(current_user)
 
     records = get_user_classifications(
         db=db,
@@ -213,9 +208,7 @@ def get_classification_details(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    require_regular_user(
-        current_user,
-    )
+    require_regular_user(current_user)
 
     record = get_user_classification(
         db=db,
@@ -229,9 +222,7 @@ def get_classification_details(
             detail="Classification record not found.",
         )
 
-    return build_record_response(
-        record,
-    )
+    return build_record_response(record)
 
 
 # ============================================================
@@ -246,9 +237,7 @@ def get_classification_image(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    require_regular_user(
-        current_user,
-    )
+    require_regular_user(current_user)
 
     record = get_user_classification(
         db=db,
@@ -293,9 +282,7 @@ def delete_classification(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    require_regular_user(
-        current_user,
-    )
+    require_regular_user(current_user)
 
     record = get_user_classification(
         db=db,
@@ -318,10 +305,7 @@ def delete_classification(
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                "Unable to delete the "
-                "classification record."
-            ),
+            detail="Unable to delete the classification record.",
         ) from error
 
     return Response(

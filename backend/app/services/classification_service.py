@@ -16,16 +16,23 @@ def create_classification_record(
     confidence: float,
     validated_image: ValidatedImage,
     model_name: str | None = None,
+    grade_scores: dict[str, float] | None = None,
 ) -> ClassificationRecord:
-    record = ClassificationRecord(
-        user_id=user_id,
-        predicted_grade=predicted_grade,
-        confidence=confidence,
-        model_name=model_name,
-        image_file_name=validated_image.file_name,
-        image_mime_type=validated_image.mime_type,
-        image_data=validated_image.image_bytes,
-    )
+    record_data = {
+        "user_id": user_id,
+        "predicted_grade": predicted_grade,
+        "confidence": confidence,
+        "model_name": model_name,
+        "image_file_name": validated_image.file_name,
+        "image_mime_type": validated_image.mime_type,
+        "image_data": validated_image.image_bytes,
+    }
+
+    if grade_scores is not None:
+        # Copy the original scores without converting or rounding them.
+        record_data["grade_scores"] = dict(grade_scores)
+
+    record = ClassificationRecord(**record_data)
 
     db.add(record)
 
