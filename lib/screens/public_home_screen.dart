@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/link.dart';
 
 import '../app/theme.dart';
+
+// Enable the button only after publishing an APK release asset.
+const _androidApkUrl = String.fromEnvironment('ANDROID_APK_URL');
+Uri? get _androidDownloadUri {
+  final uri = Uri.tryParse(_androidApkUrl.trim());
+  return uri != null && uri.scheme == 'https' && uri.host.isNotEmpty
+      ? uri
+      : null;
+}
 
 class PublicHomeScreen extends StatefulWidget {
   const PublicHomeScreen({super.key});
@@ -150,6 +160,8 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
                             const _WhyAbakaScanSection(),
 
                             const _PlatformSection(),
+
+                            const _AndroidDownloadSection(),
 
                             _FinalCallToAction(
                               onRegister: _openRegister,
@@ -609,6 +621,7 @@ class _HeroContent extends StatelessWidget {
               icon: const Icon(Icons.south_rounded),
               label: const Text('Explore How It Works'),
             ),
+            const _ApkDownloadButton(onDark: true),
           ],
         ),
 
@@ -1312,6 +1325,79 @@ class _PlatformSection extends StatelessWidget {
 // ============================================================
 // FINAL CTA
 // ============================================================
+
+class _ApkDownloadButton extends StatelessWidget {
+  const _ApkDownloadButton({this.onDark = false});
+  final bool onDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final uri = _androidDownloadUri;
+    final color = onDark ? AppColors.background : AppColors.primaryDark;
+    Widget button(VoidCallback? follow) => OutlinedButton.icon(
+      onPressed: follow,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        disabledForegroundColor: color.withValues(alpha: 0.55),
+        side: BorderSide(color: color.withValues(alpha: 0.35)),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 17),
+      ),
+      icon: const Icon(Icons.download_rounded),
+      label: const Text('Download Android APK'),
+    );
+    if (uri == null) {
+      return Tooltip(
+        message: 'The Android download will be available here once published.',
+        child: button(null),
+      );
+    }
+    // Link renders a real browser link and uses the platform launcher on Android.
+    return Link(
+      uri: uri,
+      target: LinkTarget.blank,
+      builder: (context, followLink) => button(followLink),
+    );
+  }
+}
+
+class _AndroidDownloadSection extends StatelessWidget {
+  const _AndroidDownloadSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final available = _androidDownloadUri != null;
+    return Container(
+      width: double.infinity,
+      color: AppColors.primarySoft,
+      child: _PageSection(
+        verticalPadding: 64,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.android_rounded, color: AppColors.primary, size: 36),
+            const SizedBox(height: 16),
+            Text('Take AbakaScan with you.',
+              style: AppTypography.sectionTitle.copyWith(color: AppColors.primaryDark)),
+            const SizedBox(height: 12),
+            const Text(
+              'Install AbakaScan on your Android phone to analyze fiber images and keep your history on the device.',
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 16, height: 1.6),
+            ),
+            const SizedBox(height: 20),
+            const _ApkDownloadButton(),
+            const SizedBox(height: 16),
+            Text(
+              available
+                  ? 'Android 7.0 or newer. Download the APK, open it from Downloads, and follow your phone’s installation prompts. Initial login and email verification require a connection to the AbakaScan server.'
+                  : 'The Android download will be available here once published.',
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, height: 1.6),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _FinalCallToAction extends StatelessWidget {
   const _FinalCallToAction({required this.onRegister, required this.onLogin});

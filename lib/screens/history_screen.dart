@@ -1,3 +1,4 @@
+import '../widgets/classification_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -358,7 +359,7 @@ class _HistoryBody extends StatelessWidget {
       final matchesSearch =
           query.isEmpty ||
           record.predictedGrade.toLowerCase().contains(query) ||
-          record.id.toLowerCase().contains(query);
+          (record.analysisNumber?.toString().contains(query) ?? false);
       final matchesGrade =
           validSelectedGrade == 'All' ||
           record.predictedGrade.trim() == validSelectedGrade;
@@ -737,7 +738,7 @@ class _MobileHistoryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Analysis ${_shortId(record.id)}',
+                      'Analysis ${record.analysisNumber?.toString() ?? '—'}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTypography.cardTitle.copyWith(
@@ -868,7 +869,7 @@ class _DesktopRecordRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Analysis ${_shortId(record.id)}',
+                      'Analysis ${record.analysisNumber?.toString() ?? '—'}',
                       style: AppTypography.cardTitle.copyWith(
                         fontSize: 13,
                         color: colors.onSurface,
@@ -876,7 +877,7 @@ class _DesktopRecordRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      record.id,
+                      'Saved analysis',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTypography.caption.copyWith(
@@ -981,7 +982,7 @@ class _RecordImage extends StatelessWidget {
         height: height,
         child: imageUrl == null
             ? _FallbackImage(width: width, height: height)
-            : Image.network(
+            : classificationImage(
                 imageUrl,
                 fit: BoxFit.cover,
                 headers: token == null || token.trim().isEmpty
@@ -1376,14 +1377,6 @@ double _confidence(double value) {
     return (value * 100).clamp(0.0, 100.0).toDouble();
   }
   return value.clamp(0.0, 100.0).toDouble();
-}
-
-String _shortId(String id) {
-  final value = id.trim();
-  if (value.length <= 8) {
-    return value;
-  }
-  return value.substring(0, 8);
 }
 
 String _formatDateTime(DateTime date) {

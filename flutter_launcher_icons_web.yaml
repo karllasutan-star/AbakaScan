@@ -1,0 +1,8 @@
+flutter_launcher_icons:
+  android: false
+  ios: false
+  web:
+    generate: true
+    image_path: "assets/branding/abakascan_launcher.png"
+    background_color: "#053719"
+    theme_color: "#053719"

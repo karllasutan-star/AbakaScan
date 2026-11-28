@@ -1,3 +1,4 @@
+import '../widgets/classification_image.dart';
 import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
@@ -550,7 +551,7 @@ class _DesktopHeader extends StatelessWidget {
               const SizedBox(height: 7),
 
               Text(
-                'Review the saved image and classification information for Analysis ${_shortId(record.id)}.',
+                'Review the saved image and classification information for Analysis ${record.analysisNumber?.toString() ?? '—'}.',
 
                 style: AppTypography.bodySecondary.copyWith(
                   height: 1.5,
@@ -593,7 +594,7 @@ class _MobileRecordHeader extends StatelessWidget {
 
             children: [
               Text(
-                'Analysis ${_shortId(record.id)}',
+                'Analysis ${record.analysisNumber?.toString() ?? '—'}',
 
                 style: AppTypography.cardTitle.copyWith(
                   fontSize: 16,
@@ -662,8 +663,9 @@ class _StoredImagePanel extends StatelessWidget {
 
             child: resolvedUrl == null
                 ? const _ImageFallback(unavailable: false)
-                : Image.network(
+                : classificationImage(
                     resolvedUrl,
+                    full: true,
 
                     fit: BoxFit.cover,
 
@@ -1001,9 +1003,9 @@ class _ClassificationInformation extends StatelessWidget {
           const Divider(height: 23),
 
           _DetailRow(
-            label: 'Classification ID',
+            label: 'Analysis Number',
 
-            value: record.id,
+            value: record.analysisNumber?.toString() ?? '—',
 
             selectable: true,
           ),
@@ -1660,16 +1662,6 @@ String? _resolveImageUrl(String? value) {
   final path = trimmed.startsWith('/') ? trimmed : '/$trimmed';
 
   return '$base$path';
-}
-
-String _shortId(String id) {
-  final value = id.trim();
-
-  if (value.length <= 8) {
-    return value;
-  }
-
-  return value.substring(0, 8);
 }
 
 String _formatDateTime(DateTime date) {

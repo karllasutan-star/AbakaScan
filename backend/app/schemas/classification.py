@@ -19,6 +19,8 @@ class ClassificationResponse(BaseModel):
 
     classification_id: int
 
+    analysis_number: int = Field(ge=1)
+
     predicted_grade: str
 
     confidence: float = Field(
@@ -53,6 +55,8 @@ class ClassificationRecordResponse(BaseModel):
     )
 
     classification_id: int
+
+    analysis_number: int = Field(ge=1)
 
     predicted_grade: str
 

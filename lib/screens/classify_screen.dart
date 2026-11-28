@@ -1,3 +1,4 @@
+import '../services/completion_notifications.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:flutter/material.dart';
@@ -29,7 +30,45 @@ class ClassifyScreen extends StatefulWidget {
   State<ClassifyScreen> createState() => _ClassifyScreenState();
 }
 
-class _ClassifyScreenState extends State<ClassifyScreen> {
+class _ClassifyScreenState extends State<ClassifyScreen> with RouteAware {
+  PageRoute<dynamic>? _analysisRoute;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute<dynamic> && !identical(route, _analysisRoute)) {
+      CompletionNotifications.routeObserver.unsubscribe(this);
+      _analysisRoute = route;
+      CompletionNotifications.routeObserver.subscribe(this, route);
+      _setAnalyzeVisible(route.isCurrent);
+    }
+  }
+
+  void _setAnalyzeVisible(bool visible) {
+    final route = _analysisRoute;
+    if (visible && route != null) {
+      CompletionNotifications.showAnalyze(this, route);
+    } else {
+      CompletionNotifications.hideAnalyze(this);
+    }
+  }
+
+  @override
+  void didPush() => _setAnalyzeVisible(true);
+  @override
+  void didPopNext() => _setAnalyzeVisible(true);
+  @override
+  void didPushNext() => _setAnalyzeVisible(false);
+  @override
+  void didPop() => _setAnalyzeVisible(false);
+  @override
+  void dispose() {
+    CompletionNotifications.routeObserver.unsubscribe(this);
+    CompletionNotifications.hideAnalyze(this);
+    super.dispose();
+  }
+
   ResultScreen? _analysisResult;
 
   Future<void> _startNewAnalysis() async {
@@ -218,6 +257,7 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
         confidence: result.confidence,
         gradeScores: result.gradeScores,
         classificationId: result.classificationId,
+        analysisNumber: result.analysisNumber,
         createdAt: result.createdAt,
         savedToHistory: result.savedToHistory,
         detectionStatus: result.detectionStatus,
@@ -284,42 +324,22 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
   }
 
   void _returnHome() {
-    if (context.read<ClassificationProvider>().isAnalyzing) {
-      return;
-    }
-
     returnToDashboard(context);
   }
 
   Future<void> _openHistory() async {
-    if (context.read<ClassificationProvider>().isAnalyzing) {
-      return;
-    }
-
     await openSection(context, const HistoryScreen());
   }
 
   Future<void> _openReports() async {
-    if (context.read<ClassificationProvider>().isAnalyzing) {
-      return;
-    }
-
     await openSection(context, const ReportsScreen());
   }
 
   Future<void> _openSettings() async {
-    if (context.read<ClassificationProvider>().isAnalyzing) {
-      return;
-    }
-
     await openSection(context, const SettingsScreen());
   }
 
   Future<void> _openAbout() async {
-    if (context.read<ClassificationProvider>().isAnalyzing) {
-      return;
-    }
-
     await openSection(context, const AboutScreen());
   }
 
@@ -381,7 +401,7 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
 
                         onLogout: _logout,
 
-                        disabled: classificationProvider.isAnalyzing,
+                        disabled: false,
                       ),
                     ),
 
@@ -390,7 +410,7 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
                 ),
 
                 if (classificationProvider.isAnalyzing)
-                  const _AnalysisOverlay(),
+                  const _AnalysisOverlay(left: 214),
               ],
             ),
           );
@@ -432,9 +452,7 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
                       child: IconButton(
                         tooltip: 'Back',
 
-                        onPressed: classificationProvider.isAnalyzing
-                            ? null
-                            : () {
+                        onPressed: () {
                                 if (_analysisResult != null) {
                                   _startNewAnalysis();
 
@@ -474,9 +492,7 @@ class _ClassifyScreenState extends State<ClassifyScreen> {
                       child: IconButton(
                         tooltip: 'About',
 
-                        onPressed: classificationProvider.isAnalyzing
-                            ? null
-                            : _openAbout,
+                        onPressed: _openAbout,
 
                         icon: const Icon(Icons.info_outline_rounded),
                       ),
@@ -1746,13 +1762,15 @@ class _ErrorBox extends StatelessWidget {
 // ============================================================
 
 class _AnalysisOverlay extends StatelessWidget {
-  const _AnalysisOverlay();
+  const _AnalysisOverlay({this.left = 0});
+  final double left;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
     return Positioned.fill(
+      left: left,
       child: Container(
         color: AppColors.primaryDark.withValues(alpha: 0.76),
 

@@ -61,6 +61,7 @@ def require_regular_user(current_user: User) -> None:
 def build_record_response(record) -> ClassificationRecordResponse:
     return ClassificationRecordResponse(
         classification_id=record.classification_id,
+        analysis_number=record.analysis_number,
         predicted_grade=record.predicted_grade,
         confidence=record.confidence,
         created_at=record.created_at,
@@ -160,6 +161,7 @@ async def classify_image(
 
     return ClassificationResponse(
         classification_id=record.classification_id,
+        analysis_number=record.analysis_number,
         predicted_grade=record.predicted_grade,
         confidence=record.confidence,
         created_at=record.created_at,

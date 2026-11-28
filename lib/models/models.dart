@@ -350,6 +350,7 @@ class ClassificationResultModel {
     required this.confidence,
     this.gradeScores,
     this.classificationId,
+    this.analysisNumber,
     this.createdAt,
     this.imageUrl,
     this.savedToHistory = true,
@@ -368,6 +369,7 @@ class ClassificationResultModel {
   final Map<String, double>? gradeScores;
 
   final String? classificationId;
+  final int? analysisNumber;
   final DateTime? createdAt;
   final String? imageUrl;
   final bool savedToHistory;
@@ -395,6 +397,7 @@ class ClassificationResultModel {
 
     return ClassificationResultModel(
       classificationId: rawId?.toString(),
+      analysisNumber: _parseAnalysisNumber(json['analysis_number']),
       predictedGrade: rawGrade?.toString() ?? '',
       confidence: normalizedConfidence.clamp(0.0, 1.0).toDouble(),
       gradeScores: _parseGradeScores(json['grade_scores']),
@@ -410,6 +413,7 @@ class ClassificationResultModel {
   Map<String, dynamic> toJson() {
     return {
       'classification_id': classificationId,
+      'analysis_number': analysisNumber,
       'predicted_grade': predictedGrade,
       'confidence': confidence,
       'grade_scores': gradeScores,
@@ -430,6 +434,7 @@ class ClassificationResultModel {
 class ClassificationRecordModel {
   const ClassificationRecordModel({
     required this.id,
+    this.analysisNumber,
     required this.predictedGrade,
     required this.confidence,
     required this.createdAt,
@@ -439,6 +444,7 @@ class ClassificationRecordModel {
   });
 
   final String id;
+  final int? analysisNumber;
   final String predictedGrade;
   final double confidence;
   final DateTime createdAt;
@@ -462,6 +468,7 @@ class ClassificationRecordModel {
 
     return ClassificationRecordModel(
       id: (json['classification_id'] ?? json['id'] ?? '').toString(),
+      analysisNumber: _parseAnalysisNumber(json['analysis_number']),
       predictedGrade: rawGrade?.toString() ?? '',
       confidence: normalizedConfidence.clamp(0.0, 1.0).toDouble(),
       gradeScores: _parseGradeScores(json['grade_scores']),
@@ -558,4 +565,9 @@ bool _parseBool(dynamic value, {required bool fallback}) {
   }
 
   return fallback;
+}
+
+int? _parseAnalysisNumber(dynamic value) {
+  final parsed = value is int ? value : int.tryParse(value?.toString() ?? '');
+  return parsed != null && parsed > 0 ? parsed : null;
 }

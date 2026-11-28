@@ -1,8 +1,10 @@
+import 'package:flutter/services.dart';
+
+import 'offline_mobile.dart';
+
 import 'dart:async';
 
 import 'dart:convert';
-
-import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -94,6 +96,12 @@ class ApiClient {
   }
 
   Map<String, String> _headers({String? token, bool json = true}) {
+    if (token == 'offline-local') {
+      throw const ApiException(
+        message: 'Log in online again to access the server.',
+        code: 'online_login_required',
+      );
+    }
     return {
       'Accept': 'application/json',
 
@@ -197,6 +205,12 @@ class ApiClient {
 
     Map<String, String>? fields,
   }) async {
+    if (token == 'offline-local') {
+      throw const ApiException(
+        message: 'Log in online again to access the server.',
+        code: 'online_login_required',
+      );
+    }
     try {
       final request = http.MultipartRequest('POST', _uri(path));
 
@@ -449,6 +463,14 @@ class AuthService {
   }
 
   Future<UserModel> getProfile(String token) async {
+    if (OfflineMobile.enabled && OfflineMobile.instance.cachedUser != null) {
+      if (!OfflineMobile.instance.unlocked.value) {
+        throw const ApiException(
+          message: 'Unlock this phone to access your account.',
+        );
+      }
+      return OfflineMobile.instance.cachedUser!;
+    }
     final data = await _apiClient.get('/profile', token: token);
 
     if (data is! Map<String, dynamic>) {
@@ -491,6 +513,15 @@ class ClassificationService {
 
     required String fileName,
   }) async {
+    if (OfflineMobile.enabled) {
+      final data = await _local('classify', {
+        'bytes': imageBytes,
+        'fileName': fileName,
+      });
+      return ClassificationResultModel.fromJson(
+        Map<String, dynamic>.from(data as Map),
+      );
+    }
     dynamic data;
 
     try {
@@ -544,6 +575,16 @@ class ClassificationService {
   }
 
   Future<List<ClassificationRecordModel>> getHistory(String token) async {
+    if (OfflineMobile.enabled) {
+      final data = await _local('history') as List;
+      return data
+          .map(
+            (item) => ClassificationRecordModel.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ),
+          )
+          .toList();
+    }
     final data = await _apiClient.getCollection(
       '/classifications',
 
@@ -561,6 +602,12 @@ class ClassificationService {
 
     required String classificationId,
   }) async {
+    if (OfflineMobile.enabled) {
+      final data = await _local('get', {'id': classificationId});
+      return ClassificationRecordModel.fromJson(
+        Map<String, dynamic>.from(data as Map),
+      );
+    }
     final data = await _apiClient.get(
       '/classifications/$classificationId',
 
@@ -589,7 +636,27 @@ class ClassificationService {
 
     required String classificationId,
   }) async {
+    if (OfflineMobile.enabled) {
+      await _local('delete', {'id': classificationId});
+      return;
+    }
     await _apiClient.delete('/classifications/$classificationId', token: token);
+  }
+
+  Future<dynamic> _local(String method, [Map<String, dynamic>? args]) async {
+    try {
+      return await OfflineMobile.instance.call(method, args);
+    } on PlatformException catch (error) {
+      throw ApiException(
+        message: error.message ?? 'Offline operation failed.',
+        code: error.code,
+      );
+    } on StateError catch (error) {
+      throw ApiException(
+        message: error.message.toString(),
+        code: 'local_locked',
+      );
+    }
   }
 }
 

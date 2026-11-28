@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.classification import ClassificationRecord
@@ -44,6 +44,7 @@ def create_classification_record(
         db.rollback()
         raise
 
+    record.analysis_number = get_analysis_number(db, user_id, record.classification_id)
     return record
 
 
@@ -61,13 +62,20 @@ def get_user_classifications(
             ClassificationRecord.user_id == user_id
         )
         .order_by(
-            ClassificationRecord.created_at.desc()
+            ClassificationRecord.created_at.desc(),
+            ClassificationRecord.classification_id.desc()
         )
     )
 
     records = db.scalars(statement).all()
 
-    return list(records)
+    # Number the complete account history before any UI filtering or sorting.
+    records = list(records)
+    for number, record in enumerate(
+        sorted(records, key=lambda item: item.classification_id), start=1
+    ):
+        record.analysis_number = number
+    return records
 
 
 # ============================================================
@@ -89,7 +97,10 @@ def get_user_classification(
         )
     )
 
-    return db.scalar(statement)
+    record = db.scalar(statement)
+    if record is not None:
+        record.analysis_number = get_analysis_number(db, user_id, classification_id)
+    return record
 
 
 # ============================================================
@@ -108,3 +119,20 @@ def delete_classification_record(
     except Exception:
         db.rollback()
         raise
+
+
+def get_analysis_number(
+    db: Session,
+    user_id: int,
+    classification_id: int,
+) -> int:
+    """Display position in this account's current saved history, ordered by ID.
+
+    This does not change any primary key or database sequence. Deleted records
+    are omitted, so remaining display numbers close the gap after a refresh.
+    """
+    statement = select(func.count()).select_from(ClassificationRecord).where(
+        ClassificationRecord.user_id == user_id,
+        ClassificationRecord.classification_id <= classification_id,
+    )
+    return int(db.scalar(statement) or 0)

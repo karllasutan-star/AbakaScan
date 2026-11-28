@@ -17,6 +17,7 @@ class ResultScreen extends StatelessWidget {
     required this.onDashboard,
     this.gradeScores,
     this.classificationId,
+    this.analysisNumber,
     this.createdAt,
     this.savedToHistory = false,
     this.detectionStatus = 'graded',
@@ -27,6 +28,7 @@ class ResultScreen extends StatelessWidget {
   final double confidence;
   final Map<String, double>? gradeScores;
   final String? classificationId;
+  final int? analysisNumber;
   final DateTime? createdAt;
   final bool savedToHistory;
   final String detectionStatus;
@@ -123,6 +125,7 @@ class ResultScreen extends StatelessWidget {
           confidence: confidencePercentage,
           gradeScores: gradeScores,
           classificationId: classificationId,
+          analysisNumber: analysisNumber,
           createdAt: createdAt,
           savedToHistory: savedToHistory,
           onAnalyzeAnother: onAnalyzeAnother,
@@ -142,6 +145,7 @@ class _ResultBody extends StatelessWidget {
     required this.confidence,
     required this.gradeScores,
     required this.classificationId,
+    required this.analysisNumber,
     required this.createdAt,
     required this.savedToHistory,
     required this.onAnalyzeAnother,
@@ -154,6 +158,7 @@ class _ResultBody extends StatelessWidget {
   final double confidence;
   final Map<String, double>? gradeScores;
   final String? classificationId;
+  final int? analysisNumber;
   final DateTime? createdAt;
   final bool savedToHistory;
   final Future<void> Function() onAnalyzeAnother;
@@ -180,6 +185,7 @@ class _ResultBody extends StatelessWidget {
               if (compact)
                 _MobileResultHeader(
                   classificationId: classificationId,
+                  analysisNumber: analysisNumber,
                   createdAt: createdAt,
                   savedToHistory: savedToHistory,
                 ),
@@ -193,6 +199,7 @@ class _ResultBody extends StatelessWidget {
                     confidence: confidence,
                     gradeScores: gradeScores,
                     classificationId: classificationId,
+                    analysisNumber: analysisNumber,
                     createdAt: createdAt,
                     savedToHistory: savedToHistory,
                   );
@@ -305,16 +312,18 @@ class _DesktopHeader extends StatelessWidget {
 class _MobileResultHeader extends StatelessWidget {
   const _MobileResultHeader({
     required this.classificationId,
+    required this.analysisNumber,
     required this.createdAt,
     required this.savedToHistory,
   });
   final String? classificationId;
+  final int? analysisNumber;
   final DateTime? createdAt;
   final bool savedToHistory;
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final id = _displayId(classificationId);
+    final id = analysisNumber?.toString();
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -460,6 +469,7 @@ class _ClassificationCard extends StatelessWidget {
     required this.confidence,
     required this.gradeScores,
     required this.classificationId,
+    required this.analysisNumber,
     required this.createdAt,
     required this.savedToHistory,
   });
@@ -467,6 +477,7 @@ class _ClassificationCard extends StatelessWidget {
   final double confidence;
   final Map<String, double>? gradeScores;
   final String? classificationId;
+  final int? analysisNumber;
   final DateTime? createdAt;
   final bool savedToHistory;
   @override
@@ -561,12 +572,11 @@ class _ClassificationCard extends StatelessWidget {
               value: _formatDateTime(createdAt!),
             ),
           ],
-          if (classificationId != null &&
-              classificationId!.trim().isNotEmpty) ...[
+          if (analysisNumber != null) ...[
             const Divider(height: 23),
             _DetailRow(
-              label: 'Classification ID',
-              value: classificationId!,
+              label: 'Analysis Number',
+              value: analysisNumber.toString(),
               selectable: true,
             ),
           ],
@@ -888,17 +898,6 @@ class _ResultActions extends StatelessWidget {
       ),
     );
   }
-}
-
-String? _displayId(String? rawId) {
-  if (rawId == null || rawId.trim().isEmpty) {
-    return null;
-  }
-  final id = rawId.trim();
-  if (id.length <= 8) {
-    return id;
-  }
-  return id.substring(0, 8);
 }
 
 String _formatDateTime(DateTime date) {

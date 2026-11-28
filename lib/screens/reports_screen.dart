@@ -1170,7 +1170,7 @@ class _ActivityRow extends StatelessWidget {
 
             children: [
               Text(
-                'Analysis ${_shortId(record.id)}',
+                'Analysis ${record.analysisNumber?.toString() ?? '—'}',
 
                 style: AppTypography.cardTitle.copyWith(
                   fontSize: 13,
@@ -1908,16 +1908,6 @@ double _confidence(double value) {
   }
 
   return value.clamp(0.0, 100.0).toDouble();
-}
-
-String _shortId(String id) {
-  final value = id.trim();
-
-  if (value.length <= 8) {
-    return value;
-  }
-
-  return value.substring(0, 8);
 }
 
 String _formatDateTime(DateTime date) {

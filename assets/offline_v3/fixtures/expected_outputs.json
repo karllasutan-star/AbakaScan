@@ -1,0 +1,106 @@
+[
+  {
+    "group": "JK",
+    "original_image": "fixture_1_original.jpg",
+    "original_sha256": "4a12af04dbc111820979851243ab14fc1c7e50729b2ff3ea3172e450450dca5e",
+    "tensor": "fixture_1_nchw_float32_le.bin",
+    "tensor_sha256": "2d5583d35c690b457db720496f9620f6b0e2bf437899369b809f72d7df029e07",
+    "resized_rgb": "fixture_1_resized_rgb.png",
+    "shape": [
+      1,
+      3,
+      224,
+      224
+    ],
+    "dtype": "float32",
+    "byte_order": "little",
+    "material_scores": [
+      4.746335434901994e-06,
+      0.999995231628418
+    ],
+    "grade_scores": [
+      0.9996757507324219,
+      0.00012054273975081742,
+      0.00020368192053865641
+    ],
+    "normal_pipeline_outcome": "JK"
+  },
+  {
+    "group": "S-S2",
+    "original_image": "fixture_2_original.jpg",
+    "original_sha256": "f9929b8ae51aa6e8a87682ed3aac16745d29613945f6bcdd95e383980b09d7f1",
+    "tensor": "fixture_2_nchw_float32_le.bin",
+    "tensor_sha256": "86d1e553fccce4d34d518978651963b188515c0aff48eda118231931ddae58b9",
+    "resized_rgb": "fixture_2_resized_rgb.png",
+    "shape": [
+      1,
+      3,
+      224,
+      224
+    ],
+    "dtype": "float32",
+    "byte_order": "little",
+    "material_scores": [
+      2.924963519035373e-05,
+      0.9999707937240601
+    ],
+    "grade_scores": [
+      0.001957716653123498,
+      0.00019355608674231917,
+      0.9978487491607666
+    ],
+    "normal_pipeline_outcome": "S-S2"
+  },
+  {
+    "group": "S-I",
+    "original_image": "fixture_3_original.jpg",
+    "original_sha256": "303e08b6527f80a79ed1aef097c96da7da2d6c98b579f7bdff1fb297a079b032",
+    "tensor": "fixture_3_nchw_float32_le.bin",
+    "tensor_sha256": "721b728968887e7b5bea62491e75dc9c20a3c270a7f16d537fdf81c3b1ed0a3a",
+    "resized_rgb": "fixture_3_resized_rgb.png",
+    "shape": [
+      1,
+      3,
+      224,
+      224
+    ],
+    "dtype": "float32",
+    "byte_order": "little",
+    "material_scores": [
+      0.00034087413223460317,
+      0.9996591806411743
+    ],
+    "grade_scores": [
+      0.0010749039938673377,
+      0.9978837370872498,
+      0.0010413052514195442
+    ],
+    "normal_pipeline_outcome": "S-I"
+  },
+  {
+    "group": "non_abaca",
+    "original_image": "fixture_4_original.jpg",
+    "original_sha256": "5a9e73928bb21c35813f253faff60a7852713c9c57957857bfadaf480059e75e",
+    "tensor": "fixture_4_nchw_float32_le.bin",
+    "tensor_sha256": "b4f49e6f7d034ab582c5293c4b8d9153a470a1239ee658a64c8f2488c74622c9",
+    "resized_rgb": "fixture_4_resized_rgb.png",
+    "shape": [
+      1,
+      3,
+      224,
+      224
+    ],
+    "dtype": "float32",
+    "byte_order": "little",
+    "material_scores": [
+      0.9999886751174927,
+      1.1277058547420893e-05
+    ],
+    "grade_scores": [
+      0.07474739849567413,
+      0.9168993830680847,
+      0.008353205397725105
+    ],
+    "normal_pipeline_outcome": "recognition_rejected"
+  }
+]

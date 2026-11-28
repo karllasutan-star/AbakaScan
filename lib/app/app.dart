@@ -1,3 +1,5 @@
+import '../services/completion_notifications.dart';
+import '../widgets/offline_workspace.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -120,6 +122,7 @@ class _AbakaScanAppState extends State<AbakaScanApp> {
               _handleAuthenticationChange(authProvider);
               return MaterialApp(
                 navigatorKey: _navigatorKey,
+                navigatorObservers: [CompletionNotifications.routeObserver],
                 title: 'ABAKASCAN',
                 debugShowCheckedModeBanner: false,
 
@@ -127,6 +130,7 @@ class _AbakaScanAppState extends State<AbakaScanApp> {
                 darkTheme: AppTheme.darkTheme,
                 themeMode: appearanceProvider.themeMode,
 
+                builder: (context, child) => OfflineWorkspace(child: child ?? const SizedBox.shrink()),
                 home: const _AuthGate(),
                 onGenerateRoute: _generateRoute,
                 onUnknownRoute: _unknownRoute,

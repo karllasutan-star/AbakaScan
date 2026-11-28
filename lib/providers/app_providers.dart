@@ -1,3 +1,5 @@
+import '../services/completion_notifications.dart';
+import '../services/offline_mobile.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -208,6 +210,16 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      if (OfflineMobile.enabled) {
+        final localUser = await OfflineMobile.instance.restore(ApiConfig.baseUrl);
+        if (localUser != null) {
+          _currentUser = localUser;
+          // This marker is only for the local workspace; never sent to the API.
+          _token = 'offline-local';
+          _status = AuthStatus.authenticated;
+          return;
+        }
+      }
       final storedToken = await _secureStorage.read(key: _tokenKey);
 
       if (storedToken == null || storedToken.trim().isEmpty) {
@@ -340,6 +352,9 @@ class AuthProvider extends ChangeNotifier {
         throw StateError('The server did not return an authentication token.');
       }
 
+      if (OfflineMobile.enabled && result.user.isUser) {
+        await OfflineMobile.instance.enroll(result.user, ApiConfig.baseUrl);
+      }
       _token = result.token;
       _currentUser = result.user;
       _pendingVerificationEmail = null;
@@ -751,6 +766,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    if (OfflineMobile.enabled) await OfflineMobile.instance.logout();
     await _secureStorage.delete(key: _tokenKey);
 
     _clearAuthenticationState();
@@ -770,6 +786,15 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> expireSession() async {
+    if (OfflineMobile.enabled && _currentUser?.isUser == true &&
+        OfflineMobile.instance.cachedUser != null) {
+      // Server token expiry must not remove a separately unlocked local workspace.
+      _token = 'offline-local';
+      _errorStatusCode = null;
+      _status = AuthStatus.authenticated;
+      notifyListeners();
+      return;
+    }
     await _secureStorage.delete(key: _tokenKey);
 
     _clearAuthenticationState();
@@ -1035,6 +1060,8 @@ class ClassificationProvider extends ChangeNotifier {
 
   ClassificationResultModel? _result;
 
+  int _generation = 0;
+
   String? _error;
 
   int? _errorStatusCode;
@@ -1089,6 +1116,7 @@ class ClassificationProvider extends ChangeNotifier {
       return false;
     }
 
+    final generation = ++_generation;
     _status = ClassificationStatus.analyzing;
 
     _result = null;
@@ -1098,6 +1126,8 @@ class ClassificationProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      await CompletionNotifications.prepare();
+      if (generation != _generation) return false;
       final dynamic service = _classificationService;
 
       final dynamic result = await service.classify(
@@ -1105,6 +1135,8 @@ class ClassificationProvider extends ChangeNotifier {
         imageBytes: imageBytes,
         fileName: fileName,
       );
+
+      if (generation != _generation) return false;
 
       if (result is! ClassificationResultModel) {
         throw StateError('The classification response is invalid.');
@@ -1114,8 +1146,11 @@ class ClassificationProvider extends ChangeNotifier {
 
       _status = ClassificationStatus.success;
 
+      // Offline Android posts from its native worker, even while Flutter is paused.
+      if (!OfflineMobile.enabled) unawaited(CompletionNotifications.done());
       return true;
     } catch (error) {
+      if (generation != _generation) return false;
       _error = _friendlyError(
         error,
         fallback: 'Unable to classify the image. Please try again.',
@@ -1127,7 +1162,7 @@ class ClassificationProvider extends ChangeNotifier {
 
       return false;
     } finally {
-      notifyListeners();
+      if (generation == _generation) notifyListeners();
     }
   }
 
@@ -1147,6 +1182,7 @@ class ClassificationProvider extends ChangeNotifier {
   }
 
   void reset() {
+    _generation++;
     _status = ClassificationStatus.initial;
 
     _result = null;

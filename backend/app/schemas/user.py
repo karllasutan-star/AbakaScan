@@ -38,13 +38,38 @@ class UserRegisterRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_registration(self):
+        import re
+
+        password = self.password
+        missing = []
+
+        if not re.search(r"[A-Z]", password):
+            missing.append("one uppercase letter")
+
+        if not re.search(r"[a-z]", password):
+            missing.append("one lowercase letter")
+
+        if not re.search(r"[0-9]", password):
+            missing.append("one number")
+
+        if not re.search(
+            r'[!@#$%^&*(),.?":{}|<>_+=-]',
+            password,
+        ):
+            missing.append("one special character")
+
+        if missing:
+            raise ValueError(
+                "Password must include: "
+                + ", ".join(missing)
+                + "."
+            )
+
         self.full_name = self.full_name.strip()
         self.email = str(self.email).strip().lower()
 
         if self.stakeholder_role not in ALLOWED_STAKEHOLDER_ROLES:
-            raise ValueError(
-                "Invalid stakeholder role."
-            )
+            raise ValueError("Invalid stakeholder role.")
 
         if self.stakeholder_role == "OTHERS":
             if (
@@ -52,16 +77,15 @@ class UserRegisterRequest(BaseModel):
                 or not self.custom_role.strip()
             ):
                 raise ValueError(
-                    "Custom role is required when stakeholder role is Others."
+                    "Custom role is required when "
+                    "stakeholder role is Others."
                 )
 
             self.custom_role = self.custom_role.strip()
-
         else:
             self.custom_role = None
 
         return self
-
 
 # ============================================================
 # REGISTER RESPONSE

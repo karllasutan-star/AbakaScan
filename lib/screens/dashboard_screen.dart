@@ -1,4 +1,7 @@
+import '../widgets/classification_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:url_launcher/link.dart';
 import 'package:provider/provider.dart';
 
 import '../utils/app_navigation.dart';
@@ -543,7 +546,7 @@ class _DesktopBody extends StatelessWidget {
         ? records
         : records.where((record) {
             return record.predictedGrade.toLowerCase().contains(query) ||
-                record.id.toLowerCase().contains(query);
+                (record.analysisNumber?.toString().contains(query) ?? false);
           }).toList();
 
     final analytics = _DashboardStats.from(records);
@@ -623,6 +626,10 @@ class _DesktopBody extends StatelessWidget {
                     },
                   ),
 
+                if (kIsWeb) ...[
+                  const SizedBox(height: 18),
+                  const _AndroidDownloadCard(),
+                ],
                 const SizedBox(height: 24),
               ],
             ),
@@ -1136,7 +1143,7 @@ class _RecentRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Analysis ${_shortId(record.id)}',
+                'Analysis ${record.analysisNumber?.toString() ?? '—'}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppTypography.cardTitle.copyWith(
@@ -1242,7 +1249,7 @@ class _LatestContent extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Analysis ${_shortId(record.id)}',
+                    'Analysis ${record.analysisNumber?.toString() ?? '—'}',
                     style: AppTypography.cardTitle.copyWith(
                       fontSize: 13,
                       color: colors.onSurface,
@@ -1531,6 +1538,10 @@ class _MobileHome extends StatelessWidget {
                     const SizedBox(height: 26),
 
                     _MobileRecent(onHistory: onHistory),
+                    if (kIsWeb) ...[
+                      const SizedBox(height: 20),
+                      const _AndroidDownloadCard(),
+                    ],
                   ],
                 ),
               ),
@@ -1890,7 +1901,7 @@ class _MobileRecord extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Analysis ${_shortId(record.id)}',
+                  'Analysis ${record.analysisNumber?.toString() ?? '—'}',
                   style: AppTypography.cardTitle.copyWith(
                     fontSize: 13,
                     color: colors.onSurface,
@@ -1959,7 +1970,7 @@ class _Thumbnail extends StatelessWidget {
                 'assets/images/abakascan_auth_hero.png',
                 fit: BoxFit.cover,
               )
-            : Image.network(
+            : classificationImage(
                 url,
                 headers: token == null || token.trim().isEmpty
                     ? null
@@ -2208,16 +2219,6 @@ double _confidence(double value) {
   return value.clamp(0.0, 100.0).toDouble();
 }
 
-String _shortId(String id) {
-  final value = id.trim();
-
-  if (value.length <= 6) {
-    return value;
-  }
-
-  return value.substring(0, 6);
-}
-
 String _initials(String name) {
   final parts = name
       .trim()
@@ -2291,4 +2292,97 @@ String _date(DateTime value) {
   return '${months[local.month - 1]} '
       '${local.day}, ${local.year} • '
       '$hour:$minute $period';
+}
+
+// The homepage and dashboard read the same build-time download URL.
+const _androidApkDownloadUrl = String.fromEnvironment('ANDROID_APK_URL');
+
+class _AndroidDownloadCard extends StatelessWidget {
+  const _AndroidDownloadCard();
+
+  @override
+  Widget build(BuildContext context) {
+    if (!kIsWeb) return const SizedBox.shrink();
+    final colors = Theme.of(context).colorScheme;
+    final parsed = Uri.tryParse(_androidApkDownloadUrl.trim());
+    final uri = parsed != null && parsed.scheme == 'https' && parsed.host.isNotEmpty
+        ? parsed
+        : null;
+
+    Widget downloadButton(VoidCallback? follow) => FilledButton.icon(
+      onPressed: follow,
+      icon: const Icon(Icons.download_rounded),
+      label: const Text('Download APK'),
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        minimumSize: const Size(0, 48),
+      ),
+    );
+
+    final action = uri == null
+        ? Tooltip(
+            message: 'The Android download will be available once published.',
+            child: downloadButton(null),
+          )
+        : Link(
+            uri: uri,
+            target: LinkTarget.blank,
+            builder: (context, followLink) => downloadButton(followLink),
+          );
+    final description = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Get AbakaScan for Android',
+          style: AppTypography.cardTitle.copyWith(color: colors.onSurface)),
+        const SizedBox(height: 7),
+        Text(
+          uri == null
+              ? 'Analyze fiber images on your phone. The Android download will be available here once published.'
+              : 'Analyze fiber images and keep history on your phone. Initial login requires a connection to the AbakaScan server.',
+          style: TextStyle(color: colors.onSurfaceVariant, fontSize: 14, height: 1.5),
+        ),
+      ],
+    );
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final emblem = Container(
+          width: 48, height: 48,
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(Icons.android_rounded, color: colors.onPrimaryContainer, size: 28),
+        );
+        if (constraints.maxWidth < 620) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              emblem,
+              const SizedBox(height: 14),
+              description,
+              const SizedBox(height: 16),
+              SizedBox(width: double.infinity, child: action),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            emblem,
+            const SizedBox(width: 16),
+            Expanded(child: description),
+            const SizedBox(width: 24),
+            action,
+          ],
+        );
+      }),
+    );
+  }
 }
